@@ -1,0 +1,29 @@
+# dependencies
+node_modules/
+**/node_modules/
+
+# next.js
+.next/
+**/.next/
+out/
+**/out/
+
+# env files
+.env*
+**/.env*
+!**/.env.example
+*.env
+!*.env.example
+atlas-credentials.env
+
+# legacy local SQLite files (pre-MongoDB)
+web/data/*.db
+web/data/*.db-shm
+web/data/*.db-wal
+
+# misc
+.DS_Store
+*.pem
+*.tsbuildinfo
+next-env.d.ts
+.vercel

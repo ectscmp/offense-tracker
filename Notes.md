@@ -1,0 +1,11 @@
+- Log in with Microsoft
+- Teacher creates classrooms
+- Students joins classrooms
+- Teacher goes to dashboard
+- Chooses Class
+- Fill out form
+- Data is saved
+- Teacher has settings pafe for behabiors they wish to track
+- ALways include other option
+- Always include optional space for notes
+- Teacher can access report dashboard with date ranged reports for class

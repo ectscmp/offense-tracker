@@ -1,0 +1,16 @@
+{
+  "name": "offense-tracker-prototype",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Mobile-first behavior logging: prototype and production app",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check prototype/app.js",
+    "web": "npm --prefix web run dev",
+    "web:build": "npm --prefix web run build",
+    "web:lint": "npm --prefix web run lint"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

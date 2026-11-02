@@ -1,0 +1,166 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f3f5f9;
+  --surface: #ffffff;
+  --surface-2: #f8fafc;
+  --foreground: #0f172a;
+  --muted: #64748b;
+  --muted-2: #94a3b8;
+  --line: #e2e8f0;
+  --line-strong: #cbd5e1;
+  --brand: #4f46e5;
+  --brand-soft: #eef2ff;
+  --positive: #0f9f6e;
+  --positive-soft: #ecfdf5;
+  --concern: #e11d48;
+  --concern-soft: #fff1f2;
+  --warn: #b45309;
+  --warn-soft: #fffbeb;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #070b12;
+    --surface: #0f172a;
+    --surface-2: #111c31;
+    --foreground: #eef2f8;
+    --muted: #94a3b8;
+    --muted-2: #64748b;
+    --line: #1e293b;
+    --line-strong: #334155;
+    --brand: #818cf8;
+    --brand-soft: #1e1b4b;
+    --positive: #34d399;
+    --positive-soft: #052e2b;
+    --concern: #fb7185;
+    --concern-soft: #3f0d1a;
+    --warn: #fbbf24;
+    --warn-soft: #2a1f06;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-2: var(--muted-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-positive: var(--positive);
+  --color-positive-soft: var(--positive-soft);
+  --color-concern: var(--concern);
+  --color-concern-soft: var(--concern-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  background: var(--background);
+}
+
+body {
+  min-height: 100dvh;
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+::selection {
+  background: var(--brand-soft);
+  color: var(--foreground);
+}
+
+.safe-bottom {
+  padding-bottom: max(18px, env(safe-area-inset-bottom));
+}
+
+.app-frame {
+  min-height: 100dvh;
+  background: var(--background);
+}
+
+@media (min-width: 560px) {
+  body {
+    background: color-mix(in srgb, var(--background) 82%, #000 18%);
+  }
+
+  .app-frame {
+    max-width: 480px;
+    margin-inline: auto;
+    border-inline: 1px solid var(--line);
+    box-shadow: 0 30px 80px rgba(2, 6, 23, 0.22);
+  }
+}
+
+@media print {
+  @page {
+    size: Letter;
+    margin: 0.4in;
+  }
+
+  html,
+  body {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    background: #fff;
+    color: #111827;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .app-frame {
+    min-height: 0 !important;
+    max-width: none !important;
+    padding: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .print-page {
+    padding: 0 !important;
+  }
+
+  .print-card {
+    padding: 6px !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-card img {
+    max-width: 1.15in !important;
+  }
+
+  .print-card p {
+    margin-top: 2px !important;
+  }
+}
