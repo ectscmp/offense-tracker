@@ -109,7 +109,7 @@ reads [`web/railway.json`](web/railway.json) when the service root directory is 
    SEED_DEMO=false
    AUTH_MICROSOFT_ENTRA_ID_ID=<application-client-id>
    AUTH_MICROSOFT_ENTRA_ID_SECRET=<client-secret-value>
-   AUTH_MICROSOFT_ENTRA_ID_ISSUER=https://login.microsoftonline.com/<directory-tenant-id>/v2.0/
+   AUTH_MICROSOFT_ENTRA_ID_ISSUER=https://login.microsoftonline.com/<directory-tenant-id>/v2.0
    ```
 
 5. Generate a public domain under **Settings → Networking**, set `AUTH_URL` to it, and

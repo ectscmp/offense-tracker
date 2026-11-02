@@ -64,7 +64,7 @@ Follow [`AUTH_SETUP.md`](AUTH_SETUP.md) to register the tenant app. Then add the
 ```env
 AUTH_MICROSOFT_ENTRA_ID_ID=<application-client-id>
 AUTH_MICROSOFT_ENTRA_ID_SECRET=<client-secret-value>
-AUTH_MICROSOFT_ENTRA_ID_ISSUER=https://login.microsoftonline.com/<directory-tenant-id>/v2.0/
+AUTH_MICROSOFT_ENTRA_ID_ISSUER=https://login.microsoftonline.com/<directory-tenant-id>/v2.0
 ENABLE_DEV_AUTH=false
 ```
 
@@ -129,7 +129,7 @@ ENABLE_DEV_AUTH=false
 SEED_DEMO=false
 AUTH_MICROSOFT_ENTRA_ID_ID=<application-client-id>
 AUTH_MICROSOFT_ENTRA_ID_SECRET=<client-secret-value>
-AUTH_MICROSOFT_ENTRA_ID_ISSUER=https://login.microsoftonline.com/<directory-tenant-id>/v2.0/
+AUTH_MICROSOFT_ENTRA_ID_ISSUER=https://login.microsoftonline.com/<directory-tenant-id>/v2.0
 ```
 
 Add Railway's egress to the Atlas network access list, register the deployed callback URL

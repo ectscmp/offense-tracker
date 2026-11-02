@@ -41,7 +41,7 @@ the **Value** immediately. The Secret ID is not the secret value.
 ```env
 AUTH_MICROSOFT_ENTRA_ID_ID=<application-client-id>
 AUTH_MICROSOFT_ENTRA_ID_SECRET=<client-secret-value>
-AUTH_MICROSOFT_ENTRA_ID_ISSUER=https://login.microsoftonline.com/<directory-tenant-id>/v2.0/
+AUTH_MICROSOFT_ENTRA_ID_ISSUER=https://login.microsoftonline.com/<directory-tenant-id>/v2.0
 
 AUTH_SECRET=<long-random-value>
 AUTH_TRUST_HOST=true
@@ -56,6 +56,11 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
 
 Use the tenant ID in the issuer, not `common`, `organizations`, or `consumers`. The app checks
 the token's tenant ID when a tenant-specific issuer is configured.
+
+Write the issuer exactly as Microsoft publishes it: `/v2.0`, with **no trailing slash**. The
+OIDC client compares the discovery document's issuer byte-for-byte; a trailing slash produces
+`"response" body "issuer" property does not match the expected value`. The app strips a trailing
+slash defensively, but keeping the value canonical avoids confusion.
 
 ## 4. Verify and restart
 
@@ -93,5 +98,6 @@ permissions and admin consent at that point.
 | `redirect_uri` mismatch | The exact URI must be registered under **Web**, including the path |
 | `invalid_client` | Client ID/secret mismatch; use the secret **Value**, not Secret ID |
 | Tenant error or `AccessDenied` | Issuer tenant ID and the account’s tenant must match |
+| `"issuer" property does not match` | Issuer has a trailing slash or uses the domain instead of the tenant GUID; use `https://login.microsoftonline.com/<tenant-id>/v2.0` |
 | `Configuration` error | Run `npm run auth:check`; restart after editing `.env.local` |
 | Sign-in succeeds but returns to login | Account has no email/UPN, or the teacher record cannot be created |

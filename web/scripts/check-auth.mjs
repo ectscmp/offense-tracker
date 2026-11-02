@@ -6,7 +6,7 @@ if (existsSync(".env.local")) {
 
 const clientId = process.env.AUTH_MICROSOFT_ENTRA_ID_ID?.trim() ?? "";
 const secret = process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET?.trim() ?? "";
-const issuer = process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER?.trim() ?? "";
+const issuer = (process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER?.trim() ?? "").replace(/\/+$/, "");
 const devAuth = process.env.ENABLE_DEV_AUTH === "true";
 const required = [
   ["AUTH_MICROSOFT_ENTRA_ID_ID", clientId],
@@ -19,12 +19,19 @@ for (const [key, value] of required) {
   console.log(`${value ? "✓" : "✗"} ${key}${value ? " is set" : " is missing"}`);
 }
 
-const tenant = issuer.match(/login\.microsoftonline\.com\/([^/]+)\//i)?.[1] ?? "";
+const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const tenant = issuer.match(/login\.microsoftonline\.com\/([^/]+)/i)?.[1] ?? "";
 if (issuer) {
   console.log(`${tenant ? "✓" : "!"} Issuer tenant: ${tenant || "could not parse"}`);
   if (["common", "organizations", "consumers"].includes(tenant.toLowerCase())) {
     console.log("! Use the district tenant ID instead of the common issuer.");
+  } else if (tenant && !GUID.test(tenant)) {
+    console.log(
+      "! Issuer tenant is not a GUID. Use the Directory (tenant) ID, not the domain name:\n" +
+        "  https://login.microsoftonline.com/<directory-tenant-id>/v2.0",
+    );
   }
+  console.log(`  Issuer sent to the provider: ${issuer}`);
 }
 
 if (devAuth) {

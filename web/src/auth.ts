@@ -9,9 +9,9 @@ const providers = [];
 if (microsoft.configured) {
   providers.push(
     MicrosoftEntraID({
-      clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID,
+      clientId: microsoft.clientId,
       clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET,
-      issuer: process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER,
+      issuer: microsoft.issuer,
       authorization: {
         params: {
           scope: "openid profile email",
@@ -64,7 +64,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const microsoftProfile = profile as
         | { tid?: string; email?: string; preferred_username?: string }
         | undefined;
-      if (microsoft.tenantRestricted && microsoftProfile?.tid !== microsoft.tenantId) {
+      if (
+        microsoft.tenantRestricted &&
+        microsoftProfile?.tid?.toLowerCase() !== microsoft.tenantId.toLowerCase()
+      ) {
         return false;
       }
       return Boolean(microsoftProfile?.email || microsoftProfile?.preferred_username);
