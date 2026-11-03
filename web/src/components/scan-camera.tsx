@@ -146,7 +146,7 @@ export function ScanCamera() {
         />
       </div>
 
-      <div className="relative mx-4 mt-3 h-[260px] overflow-hidden rounded-2xl bg-black">
+      <div className="relative mx-4 mt-3 h-[260px] overflow-hidden rounded-2xl bg-black lg:h-[320px]">
         <video
           ref={videoRef}
           muted
@@ -237,7 +237,7 @@ export function ScanCamera() {
             id="manual-code"
             value={manual}
             onChange={(event) => setManual(event.target.value)}
-            placeholder="Student ID or ot:// code"
+            placeholder="Student ID or QR code"
             autoComplete="off"
             className="h-10 min-w-0 flex-1 rounded-xl border border-white/15 bg-white/5 px-3 text-base text-white outline-none placeholder:text-white/30 focus:border-white/40"
           />

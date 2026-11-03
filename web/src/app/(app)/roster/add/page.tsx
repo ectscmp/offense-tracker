@@ -21,7 +21,7 @@ export default async function AddStudentsPage() {
   const counts = await getClassCounts(teacher.id);
 
   return (
-    <main className="px-5 pb-8 pt-5">
+    <main className="px-5 pb-8 pt-5 lg:mx-auto lg:max-w-3xl lg:px-10 lg:py-10">
       <header className="flex items-center gap-3">
         <Link
           href="/roster"
@@ -34,11 +34,11 @@ export default async function AddStudentsPage() {
           <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted">
             {classLabel(classroom)}
           </p>
-          <h1 className="text-2xl font-extrabold tracking-[-0.04em]">Add students</h1>
+          <h1 className="text-2xl font-extrabold tracking-[-0.04em] lg:text-[32px]">Add students</h1>
         </div>
       </header>
 
-      <div className="mt-5">
+      <div className="mt-5 lg:max-w-md">
         <ClassSwitcher classes={classes} activeId={classroom.id} counts={counts} />
       </div>
 

@@ -23,7 +23,7 @@ const client = new MongoClient(uri, { serverSelectionTimeoutMS: 8000 });
 try {
   await client.connect();
   await client.db(dbName).dropDatabase();
-  console.log(`Dropped database "${dbName}". The next sign-in re-seeds the demo teacher.`);
+  console.log(`Dropped database "${dbName}". The next sign-in recreates the teacher defaults.`);
 } finally {
   await client.close();
 }

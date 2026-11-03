@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     default: "Offense Tracker",
     template: "%s · Offense Tracker",
   },
-  description: "Mobile-first student behavior logging for teachers.",
+  description: "Student behavior logging, rosters, and reports for teachers.",
   applicationName: "Offense Tracker",
 };
 

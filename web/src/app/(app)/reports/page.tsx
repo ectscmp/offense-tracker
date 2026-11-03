@@ -29,17 +29,17 @@ export default async function ReportsPage({
   const maxBehavior = Math.max(1, ...report.behaviors.map((behavior) => behavior.count));
 
   return (
-    <main className="px-5 pb-8 pt-7">
+    <main className="px-5 pb-8 pt-7 lg:px-10 lg:pb-12 lg:pt-10">
       <header>
         <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted">Class report</p>
-        <h1 className="mt-1 text-[30px] font-extrabold tracking-[-0.045em]">Reports</h1>
+        <h1 className="mt-1 text-[30px] font-extrabold tracking-[-0.045em] lg:text-[38px]">Reports</h1>
       </header>
 
-      <div className="mt-5">
+      <div className="mt-5 lg:max-w-xl">
         <ClassSwitcher classes={classes} activeId={classroom.id} counts={counts} />
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-2">
+      <div className="mt-3 grid grid-cols-2 gap-2 lg:max-w-xl">
         <Link
           href="?days=7"
           className={`rounded-xl border px-3 py-2 text-center text-xs font-bold ${
@@ -58,21 +58,21 @@ export default async function ReportsPage({
         </Link>
       </div>
 
-      <section className="mt-4 grid grid-cols-3 gap-2">
+      <section className="mt-4 grid grid-cols-3 gap-2 lg:max-w-xl">
         <Stat label="entries" value={report.entries} />
         <Stat label="students" value={report.students} />
         <Stat label="positive" value={`${report.positiveShare}%`} positive />
       </section>
 
       {report.entries ? (
-        <>
+        <div className="xl:grid xl:grid-cols-2 xl:items-start xl:gap-8">
           <section className="mt-6">
             <h2 className="mb-2 text-[11px] font-extrabold uppercase tracking-[0.1em] text-muted">
               Behaviors
             </h2>
             <div className="space-y-2 rounded-2xl border border-line bg-surface p-3">
               {report.behaviors.map((behavior) => (
-                <div key={`${behavior.label}-${behavior.tone}`} className="grid grid-cols-[90px_1fr_26px] items-center gap-2">
+                <div key={`${behavior.label}-${behavior.tone}`} className="grid grid-cols-[90px_1fr_26px] items-center gap-2 lg:grid-cols-[130px_1fr_30px]">
                   <span className="truncate text-[11px] font-semibold">{behavior.label}</span>
                   <span className="h-2 overflow-hidden rounded-full bg-surface-2">
                     <span
@@ -97,7 +97,7 @@ export default async function ReportsPage({
                 <Link
                   key={student.id}
                   href={`/student/${student.id}`}
-                  className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-3"
+                  className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-3 transition-colors hover:border-line-strong hover:bg-surface-2"
                 >
                   <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-soft text-[10px] font-extrabold text-brand">
                     {student.firstName.charAt(0)}
@@ -109,7 +109,7 @@ export default async function ReportsPage({
               ))}
             </div>
           </section>
-        </>
+        </div>
       ) : (
         <div className="mt-6">
           <EmptyState icon={BarChart3} title="No entries in this range">

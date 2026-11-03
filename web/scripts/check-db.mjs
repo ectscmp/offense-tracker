@@ -23,7 +23,7 @@ try {
 
   const collections = (await db.listCollections().toArray()).map((entry) => entry.name).sort();
   if (!collections.length) {
-    console.log("No collections yet. Sign in once to seed the demo teacher and roster.");
+    console.log("No collections yet. Sign in once to create the teacher and default behaviors.");
   } else {
     for (const name of collections) {
       const count = await db.collection(name).countDocuments();

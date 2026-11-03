@@ -18,7 +18,7 @@ export default async function NewClassPage({
   const { error } = await searchParams;
 
   return (
-    <main className="px-5 pb-8 pt-5">
+    <main className="px-5 pb-8 pt-5 lg:mx-auto lg:max-w-3xl lg:px-10 lg:py-10">
       <header className="flex items-center gap-3">
         <Link
           href="/settings"
@@ -29,7 +29,7 @@ export default async function NewClassPage({
         </Link>
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted">Classroom setup</p>
-          <h1 className="text-2xl font-extrabold tracking-[-0.04em]">Add a class</h1>
+          <h1 className="text-2xl font-extrabold tracking-[-0.04em] lg:text-[32px]">Add a class</h1>
         </div>
       </header>
 

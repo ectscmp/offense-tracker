@@ -2,12 +2,15 @@
 
 import { signIn, signOut } from "@/auth";
 
-export async function signInWithMicrosoft() {
-  await signIn("microsoft-entra-id", { redirectTo: "/home" });
+function safeRedirect(value: FormDataEntryValue | null) {
+  if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//")) {
+    return "/home";
+  }
+  return value;
 }
 
-export async function signInDev() {
-  await signIn("dev", { redirectTo: "/home" });
+export async function signInWithMicrosoft(formData: FormData) {
+  await signIn("microsoft-entra-id", { redirectTo: safeRedirect(formData.get("next")) });
 }
 
 export async function signOutAction() {

@@ -34,11 +34,11 @@ export default async function RosterPage({
   const counts = await getClassCounts(teacher.id);
 
   return (
-    <main className="px-5 pb-8 pt-7">
+    <main className="px-5 pb-8 pt-7 lg:px-10 lg:pb-12 lg:pt-10">
       <header className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted">Class roster</p>
-          <h1 className="mt-1 text-[30px] font-extrabold tracking-[-0.045em]">Students</h1>
+          <h1 className="mt-1 text-[30px] font-extrabold tracking-[-0.045em] lg:text-[38px]">Students</h1>
         </div>
         <div className="flex items-center gap-1.5">
           <Link
@@ -58,7 +58,7 @@ export default async function RosterPage({
         </div>
       </header>
 
-      <div className="mt-5">
+      <div className="mt-5 lg:max-w-xl">
         <ClassSwitcher classes={classes} activeId={classroom.id} counts={counts} />
       </div>
 
@@ -66,7 +66,7 @@ export default async function RosterPage({
         {roster.length} students · {counts[classroom.id] ?? 0} enrolled
       </p>
 
-      <form method="get" className="relative mt-4">
+      <form method="get" className="relative mt-4 lg:max-w-xl">
         <Search size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
         <input
           type="search"
@@ -78,12 +78,12 @@ export default async function RosterPage({
         />
       </form>
 
-      <div className="mt-4 space-y-2">
+      <div className="mt-4 space-y-2 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
         {filtered.map((student) => (
           <Link
             key={student.id}
             href={`/student/${student.id}`}
-            className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-3"
+            className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-3 transition-colors hover:border-line-strong hover:bg-surface-2"
           >
             <Avatar name={nameOf(student)} color={student.color} />
             <span className="min-w-0 flex-1">
@@ -112,7 +112,7 @@ export default async function RosterPage({
 
       <Link
         href="/roster/add"
-        className="mt-4 flex h-12 items-center justify-center gap-2 rounded-xl border border-line bg-surface text-sm font-bold text-brand"
+        className="mt-4 flex h-12 items-center justify-center gap-2 rounded-xl border border-line bg-surface text-sm font-bold text-brand lg:hidden"
       >
         <Plus size={17} />
         Add or bulk import students

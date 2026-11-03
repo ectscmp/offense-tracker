@@ -263,7 +263,7 @@ async function positiveShare(match: Record<string, unknown>): Promise<number> {
 export async function ensureTeacher(input: { email: string; name: string }): Promise<Teacher> {
   const email = input.email.trim().toLowerCase();
   if (!email) throw new Error("A teacher email is required.");
-  const { teachers, classes, students } = await connect();
+  const { teachers, settings } = await connect();
   const now = new Date();
 
   try {
@@ -274,19 +274,17 @@ export async function ensureTeacher(input: { email: string; name: string }): Pro
       selectedClassId: null,
       createdAt: now,
     });
-    await seedTeacher(email, now);
+    await seedTeacher(email);
   } catch (error) {
     if (!isDuplicateKey(error)) throw error;
     const existing = await teachers.findOne({ _id: email });
     if (existing && existing.name !== input.name) {
       await teachers.updateOne({ _id: email }, { $set: { name: input.name } });
     }
-    // Recover from a first-run seed that stopped part way through.
-    const [classCount, studentCount] = await Promise.all([
-      classes.countDocuments({ teacherId: email }),
-      students.countDocuments({ teacherId: email }),
-    ]);
-    if (classCount === 0 && studentCount === 0) await seedTeacher(email, now);
+    // Recover from a first-run seed that stopped part way through. Settings are
+    // written last, so their presence means the defaults were fully seeded.
+    const defaults = await settings.findOne({ _id: email });
+    if (!defaults) await seedTeacher(email);
   }
 
   const teacher = await teachers.findOne({ _id: email });
@@ -667,15 +665,36 @@ export async function getStudent(teacherId: string, studentId: string): Promise<
   return doc ? mapStudent(doc) : undefined;
 }
 
+/**
+ * Reduce any accepted scan payload to the opaque token or student ID:
+ * legacy `ot://student/<token>`, printed `https://host/s/<token>` links,
+ * `?code=<token>` links, or a plain ID.
+ */
+function scannedKey(rawCode: string): string {
+  const code = rawCode.trim();
+  const legacy = code.match(/^ot:\/\/student\/(.+)$/i);
+  if (legacy) return legacy[1].trim();
+
+  if (/^https?:\/\//i.test(code)) {
+    try {
+      const url = new URL(code);
+      const param = url.searchParams.get("code")?.trim();
+      if (param) return param;
+      const short = url.pathname.match(/^\/s\/([^/]+)\/?$/i);
+      if (short) return decodeURIComponent(short[1]).trim();
+    } catch {
+      // Not a usable URL; fall through and treat it as a raw code.
+    }
+  }
+
+  return code;
+}
+
 export async function resolveScannedStudent(
   teacherId: string,
   rawCode: string,
 ): Promise<{ student: Student; classroom: Classroom } | null> {
-  const code = rawCode.trim();
-  if (!code) return null;
-
-  const tokenMatch = code.match(/^ot:\/\/student\/(.+)$/i);
-  const key = (tokenMatch ? tokenMatch[1] : code).trim();
+  const key = scannedKey(rawCode);
   if (!key) return null;
 
   const { students } = await connect();
@@ -790,59 +809,9 @@ export async function getStats(teacherId: string) {
   };
 }
 
-async function seedTeacher(teacherId: string, now: Date) {
-  const { classes, students, behaviors, incidents, settings, teachers } = await connect();
-
-  const classDocs: ClassDoc[] = [
-    { _id: randomUUID(), teacherId, period: "Period 3", name: "Algebra II", room: "214", color: CLASS_COLORS[0], createdAt: now },
-    { _id: randomUUID(), teacherId, period: "Period 5", name: "Algebra II", room: "214", color: CLASS_COLORS[1], createdAt: now },
-    { _id: randomUUID(), teacherId, period: "Period 7", name: "Advisory", room: "214", color: CLASS_COLORS[2], createdAt: now },
-  ];
-  await classes.insertMany(classDocs);
-
-  const roster: Array<[string, string, number[], string]> = [
-    ["Maya", "Rodriguez", [0, 2], "100100001"],
-    ["Ethan", "Chen", [0], "100100002"],
-    ["Aaliyah", "Brooks", [0], "100100003"],
-    ["Noah", "Patel", [0, 2], "100100004"],
-    ["Sofia", "Martinez", [0], "100100005"],
-    ["Liam", "O'Connor", [0], "100100006"],
-    ["Zoe", "Kim", [0], "100100007"],
-    ["Malik", "Johnson", [0], "100100008"],
-    ["Emma", "Wilson", [1, 2], "100100009"],
-    ["Diego", "Alvarez", [1], "100100010"],
-    ["Priya", "Nair", [1], "100100011"],
-    ["Jack", "Thompson", [1], "100100012"],
-    ["Nora", "Hassan", [1], "100100013"],
-    ["Tyler", "Nguyen", [1], "100100014"],
-    ["Ava", "Washington", [1], "100100015"],
-    ["Caleb", "Foster", [2], "100100016"],
-    ["Isabella", "Rossi", [2], "100100017"],
-    ["Hannah", "Park", [2], "100100018"],
-    ["Omar", "Haddad", [2], "100100019"],
-    ["Grace", "Liu", [2], "100100020"],
-  ];
-
-  const classMembers = new Map<string, string[]>(classDocs.map((doc) => [doc._id, []]));
-  const studentDocs: StudentDoc[] = roster.map(([firstName, lastName, classIndexes, externalId], index) => {
-    const id = randomUUID();
-    for (const classIndex of classIndexes) {
-      classMembers.get(classDocs[classIndex]._id)?.push(id);
-    }
-    return {
-      _id: id,
-      teacherId,
-      firstName,
-      lastName,
-      externalId,
-      externalIdLower: externalId.toLowerCase(),
-      qrToken: newQrToken(),
-      color: STUDENT_COLORS[index % STUDENT_COLORS.length],
-      classIds: classIndexes.map((classIndex) => classDocs[classIndex]._id),
-      createdAt: now,
-    };
-  });
-  await students.insertMany(studentDocs);
+/** Default behavior vocabulary created for every new teacher. */
+async function seedTeacher(teacherId: string) {
+  const { behaviors, settings } = await connect();
 
   const behaviorSeeds: Array<{ key: string; label: string; tone: BehaviorTone; icon: string }> = [
     { key: "on_task", label: "On task", tone: "positive", icon: "✅" },
@@ -870,6 +839,7 @@ async function seedTeacher(teacherId: string, now: Date) {
   }));
   await behaviors.insertMany(behaviorDocs);
 
+  // Settings are written last: their presence marks the seed as complete.
   await settings.insertOne({
     _id: teacherId,
     teacherId,
@@ -878,102 +848,6 @@ async function seedTeacher(teacherId: string, now: Date) {
     haptics: true,
     warnDuplicates: true,
   });
-  await teachers.updateOne({ _id: teacherId }, { $set: { selectedClassId: classDocs[0]._id } });
-
-  if (process.env.NODE_ENV !== "production" && process.env.SEED_DEMO !== "false") {
-    const behaviorByKey = new Map(
-      behaviorSeeds.map((seed, index) => [seed.key, behaviorDocs[index]] as const),
-    );
-    await seedIncidents({
-      teacherId,
-      classDocs,
-      classMembers,
-      behaviorByKey,
-      now,
-      incidents,
-    });
-  }
-}
-
-function seedIncidents(input: {
-  teacherId: string;
-  classDocs: ClassDoc[];
-  classMembers: Map<string, string[]>;
-  behaviorByKey: Map<string, BehaviorDoc>;
-  now: Date;
-  incidents: Collection<IncidentDoc>;
-}) {
-  const { teacherId, classDocs, classMembers, behaviorByKey, now, incidents } = input;
-  const positiveKeys = ["on_task", "helping", "participating"];
-  const concernKeys = ["disrespect", "off_task", "phone", "disruption", "tardy", "unprepared"];
-  const notes = [
-    "Redirected quietly; student reset and rejoined the task.",
-    "Second reminder needed before the behavior stopped.",
-    "Positive note sent home.",
-    "Phone was out during independent practice.",
-    "Helped a classmate without being asked.",
-  ];
-  const state = { value: 20261026 };
-  const random = () => {
-    state.value = (state.value * 1664525 + 1013904223) >>> 0;
-    return state.value / 4294967296;
-  };
-
-  const docs: IncidentDoc[] = [];
-
-  for (let dayOffset = 7; dayOffset >= 0; dayOffset--) {
-    const day = new Date(startOfToday().getTime() - dayOffset * 86_400_000);
-    if (day.getDay() === 0 || day.getDay() === 6) continue;
-    const count = dayOffset === 0 ? 3 : Math.floor(random() * 4);
-    for (let index = 0; index < count; index++) {
-      const classIndex = random() < 0.6 ? 0 : random() < 0.7 ? 1 : 2;
-      const classroom = classDocs[classIndex];
-      const members = classMembers.get(classroom._id) ?? [];
-      if (!members.length) continue;
-
-      const studentId = members[Math.floor(random() * members.length)];
-      const positive = random() < 0.35;
-      const keys = positive
-        ? [positiveKeys[Math.floor(random() * positiveKeys.length)]]
-        : [concernKeys[Math.floor(random() * concernKeys.length)]];
-      if (!positive && random() < 0.2) {
-        const extra = concernKeys[Math.floor(random() * concernKeys.length)];
-        if (!keys.includes(extra)) keys.push(extra);
-      }
-
-      const occurredAt = new Date(day);
-      occurredAt.setHours(8 + Math.floor(random() * 7), Math.floor(random() * 60), 0, 0);
-      const note = random() < 0.45 ? notes[Math.floor(random() * notes.length)] : "";
-
-      const behaviors = keys.flatMap((key) => {
-        const behavior = behaviorByKey.get(key);
-        if (!behavior) return [];
-        return [
-          {
-            id: behavior._id,
-            label: behavior.label,
-            tone: behavior.tone,
-            icon: behavior.icon,
-          },
-        ];
-      });
-
-      docs.push({
-        _id: randomUUID(),
-        teacherId,
-        studentId,
-        classId: classroom._id,
-        occurredAt,
-        note,
-        severity: !positive && random() < 0.12 ? "medium" : null,
-        source: "seed",
-        behaviors,
-        createdAt: now,
-      });
-    }
-  }
-
-  return docs.length ? incidents.insertMany(docs) : Promise.resolve();
 }
 
 export function teacherDisplayName(teacher: Teacher) {

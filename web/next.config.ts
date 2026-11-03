@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
+import { SECURITY_HEADERS } from "./src/lib/security-headers";
 
 const nextConfig: NextConfig = {
+  // Do not advertise the framework in responses.
+  poweredByHeader: false,
   // Authentication and the database are request-time concerns for this build.
   // Cache Components can be adopted route-by-route once the data layer changes again.
   cacheComponents: false,
@@ -17,6 +20,17 @@ const nextConfig: NextConfig = {
         as: "*.css",
       },
     },
+  },
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: Object.entries(SECURITY_HEADERS).map(([key, value]) => ({
+          key,
+          value,
+        })),
+      },
+    ];
   },
 };
 

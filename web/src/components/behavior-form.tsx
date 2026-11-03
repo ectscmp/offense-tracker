@@ -135,7 +135,7 @@ export function BehaviorForm({
         </p>
       ) : null}
 
-      <div className="fixed bottom-[88px] left-1/2 z-30 w-full max-w-[480px] -translate-x-1/2 border-t border-line bg-background/95 px-5 py-3 backdrop-blur-xl">
+      <div className="fixed bottom-[88px] left-1/2 z-30 w-full max-w-[560px] -translate-x-1/2 border-t border-line bg-background/95 px-5 py-3 backdrop-blur-xl lg:static lg:bottom-auto lg:left-auto lg:mt-5 lg:w-auto lg:max-w-none lg:translate-x-0 lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
         <button
           type="submit"
           disabled={pending || !selected.length || (needsNote && !note.trim())}
@@ -165,7 +165,7 @@ function BehaviorGroup({
   return (
     <section className="mt-6 first:mt-0">
       <h2 className="mb-2 text-[11px] font-extrabold uppercase tracking-[0.1em] text-muted">{title}</h2>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2 xl:grid-cols-3">
         {behaviors.map((behavior) => {
           const isSelected = selected.includes(behavior.id);
           return (

@@ -1,9 +1,14 @@
 import NextAuth from "next-auth";
-import Credentials from "next-auth/providers/credentials";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
-import { getMicrosoftAuthStatus } from "@/lib/auth-config";
+import {
+  getMicrosoftAuthStatus,
+  getTeacherAccessPolicy,
+  isApprovedTeacher,
+  type MicrosoftProfileClaims,
+} from "@/lib/auth-config";
 
 const microsoft = getMicrosoftAuthStatus();
+const teacherAccess = getTeacherAccessPolicy();
 const providers = [];
 
 if (microsoft.configured) {
@@ -29,23 +34,6 @@ if (microsoft.configured) {
   );
 }
 
-if (microsoft.devAuthEnabled) {
-  providers.push(
-    Credentials({
-      id: "dev",
-      name: "Development sign-in",
-      credentials: {},
-      async authorize() {
-        return {
-          id: "dev-teacher",
-          name: "Ms. Rivera",
-          email: "rivera@northside.edu",
-        };
-      },
-    }),
-  );
-}
-
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers,
   trustHost: true,
@@ -61,25 +49,41 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async signIn({ account, profile }) {
       if (account?.provider !== "microsoft-entra-id") return true;
 
-      const microsoftProfile = profile as
-        | { tid?: string; email?: string; preferred_username?: string }
-        | undefined;
+      const microsoftProfile = profile as MicrosoftProfileClaims | undefined;
+      if (!microsoftProfile) return false;
       if (
         microsoft.tenantRestricted &&
-        microsoftProfile?.tid?.toLowerCase() !== microsoft.tenantId.toLowerCase()
+        microsoftProfile.tid?.toLowerCase() !== microsoft.tenantId.toLowerCase()
       ) {
+        console.warn("[auth] Denied sign-in: account tenant does not match the configured tenant.");
         return false;
       }
-      return Boolean(microsoftProfile?.email || microsoftProfile?.preferred_username);
+      if (!isApprovedTeacher(microsoftProfile, teacherAccess)) {
+        console.warn(
+          "[auth] Denied sign-in: account is not in the configured teacher allowlist.",
+        );
+        return false;
+      }
+      return Boolean(
+        microsoftProfile.email ||
+          microsoftProfile.preferred_username ||
+          microsoftProfile.upn,
+      );
     },
     async jwt({ token, user }) {
       if (user) {
         token.teacherEmail = user.email;
         token.teacherName = user.name;
+        // Sessions issued before teacher authorization existed are invalid.
+        token.teacherAuthorized = true;
       }
       return token;
     },
     async session({ session, token }) {
+      if (token.teacherAuthorized !== true) {
+        if (session.user) session.user.email = "";
+        return session;
+      }
       if (session.user) {
         session.user.email = (token.teacherEmail as string | undefined) ?? session.user.email;
         session.user.name = (token.teacherName as string | undefined) ?? session.user.name;

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
-import { BottomNav } from "@/components/bottom-nav";
+import { PrimaryNav } from "@/components/primary-nav";
 import { getCurrentTeacher } from "@/lib/session";
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
@@ -8,9 +8,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   if (!teacher) redirect("/login");
 
   return (
-    <div className="app-frame min-h-dvh pb-28">
-      {children}
-      <BottomNav />
+    <div className="app-frame min-h-dvh pb-28 lg:pb-0 lg:pl-64">
+      <PrimaryNav teacher={teacher} />
+      <div className="mx-auto w-full max-w-6xl">{children}</div>
     </div>
   );
 }

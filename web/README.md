@@ -8,7 +8,7 @@ First vertical slice. It is not ready for real student data.
 
 Implemented:
 
-- Auth.js (NextAuth v5) with Microsoft Entra ID provider and local development sign-in
+- Auth.js (NextAuth v5) with Microsoft Entra ID provider
 - Server-rendered app shell and mobile bottom navigation
 - Home dashboard with class context, today's stats, recent students, latest entries
 - Teacher-created classes and class switching
@@ -20,7 +20,7 @@ Implemented:
 - Bulk roster import with client-side preview and server-side validation
 - Reports for 7/30 days with behavior and student breakdowns
 - Settings/account and sign out
-- MongoDB persistence with seeded demo classes, roster, behaviors, and entries
+- MongoDB persistence with default behaviors and empty rosters/entries
 
 Next slices: class editing/deletion, behavior settings, custom report ranges, CSV export,
 QR token rotation, audit/retention, tenant-scoped access, PWA/offline.
@@ -48,9 +48,7 @@ Create `.env.local` from `.env.example` if it does not exist.
 Copy-Item .env.example .env.local
 ```
 
-Microsoft Entra ID is the real sign-in path. For local UI work before the tenant is connected,
-set `ENABLE_DEV_AUTH=true`; that button is explicitly development-only. Generate a fresh
-`AUTH_SECRET` with:
+Microsoft Entra ID is the only sign-in path. Generate a fresh `AUTH_SECRET` with:
 
 ```powershell
 node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
@@ -65,8 +63,20 @@ Follow [`AUTH_SETUP.md`](AUTH_SETUP.md) to register the tenant app. Then add the
 AUTH_MICROSOFT_ENTRA_ID_ID=<application-client-id>
 AUTH_MICROSOFT_ENTRA_ID_SECRET=<client-secret-value>
 AUTH_MICROSOFT_ENTRA_ID_ISSUER=https://login.microsoftonline.com/<directory-tenant-id>/v2.0
-ENABLE_DEV_AUTH=false
+
+# At least one teacher allowlist is required.
+AUTH_TEACHER_ROLES=Teacher
 ```
+
+Teacher sign-in is fail-closed: if none of `AUTH_TEACHER_ROLES`, `AUTH_TEACHER_GROUPS`,
+`AUTH_ALLOWED_EMAILS`, or `AUTH_ALLOWED_DOMAINS` is set, no account can sign in.
+
+- **App role (recommended):** add a `Teacher` app role to the Entra app registration, assign it
+  to teachers or a teachers group, and set `AUTH_TEACHER_ROLES=Teacher`.
+- **Security group:** set `AUTH_TEACHER_GROUPS=<group-object-id>`. The app registration must be
+  configured to emit the `groups` claim; beware the groups-overage claim in large tenants.
+- **Email/domain allowlist:** use `AUTH_ALLOWED_EMAILS` or `AUTH_ALLOWED_DOMAINS` for a small
+  pilot. A domain allowlist may also admit student accounts, so prefer roles or groups.
 
 Register this redirect URI on the Entra app registration:
 
@@ -92,8 +102,8 @@ token tenant and only accepts accounts with an email/UPN.
 - Collections: `teachers`, `classes`, `students`, `behaviors`, `incidents`, `settings`
 - Indexes are created on the first connection; class membership is embedded in each student
   (`classIds`), and each incident embeds a snapshot of its behaviors.
-- The teacher, demo classes, roster, and behaviors are created on the first sign-in.
-- `SEED_DEMO=false` skips the fictional behavior entries (classes/behaviors still seed).
+- The teacher, default behaviors, and settings are created on the first sign-in.
+  New accounts start with an empty workspace.
 
 Check the connection and collection counts:
 
@@ -107,7 +117,7 @@ Drop the configured database (destructive; requires `--yes`):
 npm run db:reset -- --yes
 ```
 
-The next sign-in re-seeds the demo teacher. Use a separate `MONGODB_DB` for tests so you do
+The next sign-in recreates the teacher defaults. Use a separate `MONGODB_DB` for tests so you do
 not drop real data.
 
 ## Deploy to Railway
@@ -125,12 +135,16 @@ MONGODB_DB=offense_tracker
 AUTH_SECRET=<32-byte random base64 value>
 AUTH_TRUST_HOST=true
 AUTH_URL=https://<your-domain>.up.railway.app
-ENABLE_DEV_AUTH=false
-SEED_DEMO=false
+# Optional. QR cards otherwise reuse AUTH_URL or the request host.
+APP_URL=https://<your-domain>.up.railway.app
 AUTH_MICROSOFT_ENTRA_ID_ID=<application-client-id>
 AUTH_MICROSOFT_ENTRA_ID_SECRET=<client-secret-value>
 AUTH_MICROSOFT_ENTRA_ID_ISSUER=https://login.microsoftonline.com/<directory-tenant-id>/v2.0
+AUTH_TEACHER_ROLES=Teacher
 ```
+
+Use `AUTH_TEACHER_GROUPS`, `AUTH_ALLOWED_EMAILS`, or `AUTH_ALLOWED_DOMAINS` instead of or in
+addition to `AUTH_TEACHER_ROLES` if that fits your tenant. At least one is required.
 
 Add Railway's egress to the Atlas network access list, register the deployed callback URL
 (`https://<your-domain>.up.railway.app/api/auth/callback/microsoft-entra-id`), and redeploy.
@@ -154,27 +168,48 @@ npm run build
 
 | Route | Purpose |
 |---|---|
-| `/login` | Microsoft / development sign-in |
+| `/login` | Microsoft sign-in |
 | `/home` | Dashboard |
 | `/scan` | Camera scanner, manual code lookup, and roster fallback |
 | `/roster` | Class roster |
 | `/roster/add` | Bulk/single-line roster import |
 | `/roster/print` | Printable opaque QR cards |
+| `/s/[token]` | Short QR link; opens the student after sign-in |
 | `/classes/new` | Create a class |
 | `/student/[id]` | Behavior form and student history |
 | `/reports` | 7/30-day class report |
 | `/settings` | Account, classes, sign out |
 | `/api/health` | Railway healthcheck; pings MongoDB |
 
+## Security headers and rate limiting
+
+- `src/proxy.ts` (Next.js 16's replacement for `middleware.ts`) applies a per-IP
+  fixed-window rate limit. General requests default to 300 per minute; `/api/auth/*`
+  defaults to 60 per five minutes. `/api/health` and Link prefetches are exempt.
+- Override the defaults with `RATE_LIMIT_MAX`, `RATE_LIMIT_WINDOW_MS`,
+  `AUTH_RATE_LIMIT_MAX`, and `AUTH_RATE_LIMIT_WINDOW_MS`.
+- Counters are in memory, reset on restart, and are not shared between app
+  instances. Use Redis/Upstash before scaling past one instance.
+- `src/lib/security-headers.ts` defines the CSP, HSTS, frame, referrer, MIME
+  sniffing, cross-origin, and permissions headers. `next.config.ts` applies them
+  to every response; `proxy.ts` also attaches them to 429 responses.
+- The CSP allows inline scripts and styles because the App Router emits inline
+  bootstrap scripts. Tightening it to nonces would require every page to be
+  dynamically rendered.
+
 ## Security notes
 
 - Every page and server action resolves the current teacher and scopes queries by teacher ID.
-- Scanning accepts an opaque QR token or the student ID; both resolve only within the signed-in
-  teacher’s roster.
+- Scanning accepts an opaque QR token, the student ID, or a printed `/s/<token>` link; all
+  resolve only within the signed-in teacher’s roster.
+- Printed QR codes contain an HTTPS link to `/s/<token>` (`APP_URL`, `AUTH_URL`, or the request
+  host, in that order) so a phone camera opens the site instead of showing a custom-scheme code.
 - QR tokens are stored per student and are not displayed in normal student views.
 - Bulk import validates all lines before writing and relies on a unique
   `(teacherId, externalIdLower)` index to avoid duplicate students.
 - The development auth path must be disabled outside local development.
 - QR tokens are opaque, but revocation/reprint controls still need to be added.
+- Rate limiting is in-memory and per instance; move it to a shared store before running
+  multiple instances.
 - Before a pilot: tenant-scoped access, tenant restriction, audit logging, retention,
-  access review, rate limiting, backups, and a privacy review are still required.
+  access review, backups, and a privacy review are still required.

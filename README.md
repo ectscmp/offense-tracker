@@ -49,7 +49,7 @@ Open **http://localhost:3000**. From the repository root you can also run `npm r
 
 What is implemented in this first production slice:
 
-- Auth.js sign-in with a development teacher and Microsoft Entra ID wiring
+- Auth.js sign-in with Microsoft Entra ID wiring
 - Server-rendered home dashboard with class context and live stats
 - Teacher-created classes, class switching, and class-scoped rosters
 - Student history and the core behavior entry form
@@ -58,17 +58,17 @@ What is implemented in this first production slice:
 - Single-line and **bulk roster import** with preview, validation, duplicate detection, and
   enrolling an existing student in another class
 - Reports for the last 7/30 days with class filtering and behavior/student breakdowns
-- MongoDB persistence with seeded classes, students, behaviors, and demo entries
+- MongoDB persistence with behaviors and an empty roster/entry history by default
 - Settings/account page and sign out
 
-The first sign-in creates the teacher record, three demo classes, 20 students, the behavior
-vocabulary, and (outside production) demo entries. Set `SEED_DEMO=false` to skip the demo
-entries. `npm run db:reset -- --yes` drops the configured database so the next sign-in
-re-seeds it. `npm run db:check` prints the connection status and collection counts.
+The first sign-in creates the teacher record and the default behavior vocabulary; accounts
+start with no classes, students, or entries. `npm run db:reset -- --yes` drops the configured
+database so the next sign-in recreates the defaults. `npm run db:check` prints the connection
+status and collection counts.
 
-Real Microsoft sign-in is wired through Auth.js and Microsoft Entra ID. It requires a
-tenant app registration; follow [`web/AUTH_SETUP.md`](web/AUTH_SETUP.md). After adding the
-values, run:
+Real Microsoft sign-in is wired through Auth.js and Microsoft Entra ID. It requires a tenant
+app registration and a teacher allowlist (Entra app role, security group, or email/domain
+allowlist); follow [`web/AUTH_SETUP.md`](web/AUTH_SETUP.md). After adding the values, run:
 
 ```powershell
 cd web
@@ -81,8 +81,7 @@ Register this callback URL on the Entra app registration:
 http://localhost:3000/api/auth/callback/microsoft-entra-id
 ```
 
-Set `ENABLE_DEV_AUTH=false` outside local development. See [`web/README.md`](web/README.md) for
-the app-specific notes and status.
+See [`web/README.md`](web/README.md) for the app-specific notes and status.
 
 ### Deploy to Railway
 
@@ -105,12 +104,14 @@ reads [`web/railway.json`](web/railway.json) when the service root directory is 
    AUTH_SECRET=<32-byte random base64 value>
    AUTH_TRUST_HOST=true
    AUTH_URL=https://<your-domain>.up.railway.app
-   ENABLE_DEV_AUTH=false
-   SEED_DEMO=false
    AUTH_MICROSOFT_ENTRA_ID_ID=<application-client-id>
    AUTH_MICROSOFT_ENTRA_ID_SECRET=<client-secret-value>
    AUTH_MICROSOFT_ENTRA_ID_ISSUER=https://login.microsoftonline.com/<directory-tenant-id>/v2.0
+   AUTH_TEACHER_ROLES=Teacher
    ```
+
+   Use `AUTH_TEACHER_GROUPS`, `AUTH_ALLOWED_EMAILS`, or `AUTH_ALLOWED_DOMAINS` instead of or
+   in addition to `AUTH_TEACHER_ROLES`. At least one teacher allowlist is required.
 
 5. Generate a public domain under **Settings → Networking**, set `AUTH_URL` to it, and
    register `https://<your-domain>.up.railway.app/api/auth/callback/microsoft-entra-id` on the
@@ -314,9 +315,8 @@ The `web/` app is a first vertical slice, not a finished release.
 - **Reports need custom dates, CSV export, and print.** Current reports are 7/30 days.
 - **No audit log, retention policy, role management, or tenant restriction.** Add these
   before any pilot involving real students.
-- **Entra ID is wired but not configured.** Follow [`web/AUTH_SETUP.md`](web/AUTH_SETUP.md),
-  run `npm run auth:check`, and set `ENABLE_DEV_AUTH=false`. Dev auth is enabled locally in
-  `.env.local` only until tenant values are added.
+- **Entra ID is wired but not configured.** Follow [`web/AUTH_SETUP.md`](web/AUTH_SETUP.md) and
+  run `npm run auth:check`.
 - **No PWA manifest, service worker, or offline queue in the production app yet.**
 
 ---

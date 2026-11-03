@@ -391,7 +391,10 @@ token = 128-bit random, base32, prefixed v1_
 - HTTPS URL (not a custom scheme) so any camera app can open it and the PWA can
   capture it; authorization still gates the result.
 - Tokens are stored hashed server-side, rotatable, and revocable.
-- Demo prototype uses `ot://student/<id>` so it is obvious this is mock data.
+- The `web/` app prints the same HTTPS `/s/<token>` link, built from `APP_URL`, the
+  Auth.js origin, or the request host, so any phone camera opens the site. The legacy
+  `ot://student/<id>` payload is still accepted, and is used only when no public origin
+  can be determined (for example, printing from an unconfigured local build).
 
 ### 6.3 Lifecycle
 
@@ -775,7 +778,7 @@ Implemented:
 - Bulk roster import with preview, validation, transactions, duplicate skipping, and
   existing-student enrollment
 - Seven/thirty-day reports with class filtering and behavior/student breakdowns
-- Mobile app shell, settings/account, and sign out
+- Responsive app shell (mobile bottom navigation, desktop sidebar), settings/account, and sign out
 
 Deliberate local-only choices:
 
@@ -783,11 +786,14 @@ Deliberate local-only choices:
   settings come from `MONGODB_URI`/`MONGODB_DB`; indexes are created on first connect.
   Class membership is embedded on the student, and each incident embeds a behavior
   snapshot. A long-running Node host (Railway) is the deployment target.
-- QR codes use a random, opaque `ot://student/<token>` payload. Existing student-ID
-  barcodes are also accepted by the scanner and manual fallback.
-- Development auth is controlled by `ENABLE_DEV_AUTH`; Entra credentials are read
-  from the environment.
-- Demo seed entries are controlled by `SEED_DEMO` and are disabled in production.
+- QR codes use a random, opaque `https://<origin>/s/<token>` link; scanning it with a
+  phone camera opens the site and, after sign-in, the student's form. Existing student-ID
+  barcodes and legacy `ot://student/<token>` payloads are still accepted by the scanner
+  and manual fallback.
+- Auth uses Microsoft Entra ID credentials read from the environment. Sign-in is restricted to
+  approved teachers through an Entra app role, security group, or email/domain allowlist, and
+  fails closed when no teacher allowlist is configured.
+- Accounts start with no demo classes, roster, or entries.
 
 Not yet in `web/`: class editing/deletion, behavior settings, custom report ranges,
 CSV/PDF export, QR token rotation, audit/retention, role management, PWA/offline.

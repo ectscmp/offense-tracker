@@ -7,7 +7,6 @@ if (existsSync(".env.local")) {
 const clientId = process.env.AUTH_MICROSOFT_ENTRA_ID_ID?.trim() ?? "";
 const secret = process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET?.trim() ?? "";
 const issuer = (process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER?.trim() ?? "").replace(/\/+$/, "");
-const devAuth = process.env.ENABLE_DEV_AUTH === "true";
 const required = [
   ["AUTH_MICROSOFT_ENTRA_ID_ID", clientId],
   ["AUTH_MICROSOFT_ENTRA_ID_SECRET", secret],
@@ -17,6 +16,41 @@ const required = [
 console.log("Microsoft Entra ID configuration\n");
 for (const [key, value] of required) {
   console.log(`${value ? "✓" : "✗"} ${key}${value ? " is set" : " is missing"}`);
+}
+
+function list(value) {
+  return (value ?? "")
+    .split(/[,\s]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+const teacherPolicy = {
+  roles: list(process.env.AUTH_TEACHER_ROLES),
+  groups: list(process.env.AUTH_TEACHER_GROUPS),
+  emails: list(process.env.AUTH_ALLOWED_EMAILS),
+  domains: list(process.env.AUTH_ALLOWED_DOMAINS),
+};
+const teacherConfigured = Object.values(teacherPolicy).some((values) => values.length > 0);
+
+console.log("\nTeacher access configuration");
+if (!teacherConfigured) {
+  console.log(
+    "✗ No teacher allowlist is configured. Set AUTH_TEACHER_ROLES, " +
+      "AUTH_TEACHER_GROUPS, AUTH_ALLOWED_EMAILS, or AUTH_ALLOWED_DOMAINS.",
+  );
+} else {
+  for (const [key, values] of [
+    ["AUTH_TEACHER_ROLES", teacherPolicy.roles],
+    ["AUTH_TEACHER_GROUPS", teacherPolicy.groups],
+    ["AUTH_ALLOWED_EMAILS", teacherPolicy.emails],
+    ["AUTH_ALLOWED_DOMAINS", teacherPolicy.domains],
+  ]) {
+    if (values.length) console.log(`✓ ${key}: ${values.join(", ")}`);
+  }
+  if (teacherPolicy.domains.length) {
+    console.log("! A domain allowlist may include student accounts. Prefer an app role or group.");
+  }
 }
 
 const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -34,11 +68,18 @@ if (issuer) {
   console.log(`  Issuer sent to the provider: ${issuer}`);
 }
 
-if (devAuth) {
-  console.log("\n! ENABLE_DEV_AUTH=true. Set it to false for a real deployment.");
+const rawBaseUrl = process.env.AUTH_URL?.trim();
+const missingScheme = Boolean(rawBaseUrl && !/^[a-z][a-z\d+.-]*:\/\//i.test(rawBaseUrl));
+if (missingScheme) {
+  console.log(
+    `\n! AUTH_URL must include a scheme. Use https://${rawBaseUrl.replace(/^\/+/, "")}`,
+  );
 }
-
-const baseUrl = process.env.AUTH_URL?.replace(/\/$/, "") || "http://localhost:3000";
+const baseUrl =
+  (missingScheme ? `https://${rawBaseUrl.replace(/^\/+/, "")}` : rawBaseUrl)?.replace(
+    /\/$/,
+    "",
+  ) || "http://localhost:3000";
 console.log(`\nCallback URL for the Entra app registration:\n${baseUrl}/api/auth/callback/microsoft-entra-id`);
 
 if (required.some(([, value]) => !value)) {
@@ -46,4 +87,9 @@ if (required.some(([, value]) => !value)) {
   process.exit(1);
 }
 
-console.log("\nMicrosoft sign-in configuration is present.");
+if (!teacherConfigured) {
+  console.log("\nTeacher access is not configured. See web/AUTH_SETUP.md.");
+  process.exit(1);
+}
+
+console.log("\nMicrosoft sign-in and teacher access configuration are present.");
