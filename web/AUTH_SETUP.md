@@ -45,44 +45,10 @@ AUTH_MICROSOFT_ENTRA_ID_ISSUER=https://login.microsoftonline.com/<directory-tena
 
 AUTH_SECRET=<long-random-value>
 AUTH_TRUST_HOST=true
-
-# At least one teacher allowlist is required.
-AUTH_TEACHER_ROLES=Teacher
 ```
 
-### Teacher allowlist
-
-Sign-in is fail-closed: if no teacher allowlist is configured, nobody can sign in. Choose one
-of these approaches.
-
-**App role (recommended)**
-
-1. In the app registration, open **App roles → Create app role**.
-2. Use display name **Teacher**, allowed member type **Users/Groups**, and value **Teacher**.
-3. Open **Enterprise applications → Offense Tracker → Users and groups** and assign the teacher
-   accounts or a teachers security group to the **Teacher** role.
-4. Set `AUTH_TEACHER_ROLES=Teacher`.
-
-**Security group**
-
-1. Create or choose a security group containing only teachers.
-2. In the app registration, open **Token configuration → Add groups claim** and select the
-   security-group option you use.
-3. Copy the group's **Object ID** and set `AUTH_TEACHER_GROUPS=<object-id>`.
-
-Large tenants can emit a groups-overage claim instead of the group list. If that happens, use
-app roles or an email allowlist instead.
-
-**Small-pilot allowlist**
-
-```env
-AUTH_ALLOWED_EMAILS=teacher@district.org,another.teacher@district.org
-# Or:
-AUTH_ALLOWED_DOMAINS=district.org
-```
-
-A domain allowlist may also admit student accounts. Prefer an app role or group for a real
-deployment.
+Any account in the configured school tenant can sign in and create classes. No app role,
+security group, or email allowlist is required.
 
 Generate `AUTH_SECRET` with:
 
@@ -106,14 +72,13 @@ npm run auth:check
 npm run dev
 ```
 
-`auth:check` confirms the Entra values, teacher allowlist, tenant, and callback URL.
+`auth:check` confirms the Entra values, tenant, and callback URL.
 
 Then open **http://localhost:3000/login** and choose **Continue with Microsoft**.
 
 ## 5. Production
 
-- Add the three Entra values, `AUTH_SECRET`, and a teacher allowlist to the hosting provider's
-  environment.
+- Add the three Entra values and `AUTH_SECRET` to the hosting provider's environment.
 - Use HTTPS for the callback URL.
 - Keep the app registration single-tenant.
 - Add the production callback URI in Entra.

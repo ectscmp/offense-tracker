@@ -63,20 +63,10 @@ Follow [`AUTH_SETUP.md`](AUTH_SETUP.md) to register the tenant app. Then add the
 AUTH_MICROSOFT_ENTRA_ID_ID=<application-client-id>
 AUTH_MICROSOFT_ENTRA_ID_SECRET=<client-secret-value>
 AUTH_MICROSOFT_ENTRA_ID_ISSUER=https://login.microsoftonline.com/<directory-tenant-id>/v2.0
-
-# At least one teacher allowlist is required.
-AUTH_TEACHER_ROLES=Teacher
 ```
 
-Teacher sign-in is fail-closed: if none of `AUTH_TEACHER_ROLES`, `AUTH_TEACHER_GROUPS`,
-`AUTH_ALLOWED_EMAILS`, or `AUTH_ALLOWED_DOMAINS` is set, no account can sign in.
-
-- **App role (recommended):** add a `Teacher` app role to the Entra app registration, assign it
-  to teachers or a teachers group, and set `AUTH_TEACHER_ROLES=Teacher`.
-- **Security group:** set `AUTH_TEACHER_GROUPS=<group-object-id>`. The app registration must be
-  configured to emit the `groups` claim; beware the groups-overage claim in large tenants.
-- **Email/domain allowlist:** use `AUTH_ALLOWED_EMAILS` or `AUTH_ALLOWED_DOMAINS` for a small
-  pilot. A domain allowlist may also admit student accounts, so prefer roles or groups.
+Any account in the configured school tenant can sign in and create classes. No app role,
+security group, or email allowlist is required.
 
 Register this redirect URI on the Entra app registration:
 
@@ -140,11 +130,7 @@ APP_URL=https://<your-domain>.up.railway.app
 AUTH_MICROSOFT_ENTRA_ID_ID=<application-client-id>
 AUTH_MICROSOFT_ENTRA_ID_SECRET=<client-secret-value>
 AUTH_MICROSOFT_ENTRA_ID_ISSUER=https://login.microsoftonline.com/<directory-tenant-id>/v2.0
-AUTH_TEACHER_ROLES=Teacher
 ```
-
-Use `AUTH_TEACHER_GROUPS`, `AUTH_ALLOWED_EMAILS`, or `AUTH_ALLOWED_DOMAINS` instead of or in
-addition to `AUTH_TEACHER_ROLES` if that fits your tenant. At least one is required.
 
 Add Railway's egress to the Atlas network access list, register the deployed callback URL
 (`https://<your-domain>.up.railway.app/api/auth/callback/microsoft-entra-id`), and redeploy.

@@ -1,14 +1,8 @@
 import NextAuth from "next-auth";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
-import {
-  getMicrosoftAuthStatus,
-  getTeacherAccessPolicy,
-  isApprovedTeacher,
-  type MicrosoftProfileClaims,
-} from "@/lib/auth-config";
+import { getMicrosoftAuthStatus, type MicrosoftProfileClaims } from "@/lib/auth-config";
 
 const microsoft = getMicrosoftAuthStatus();
-const teacherAccess = getTeacherAccessPolicy();
 const providers = [];
 
 if (microsoft.configured) {
@@ -58,12 +52,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         console.warn("[auth] Denied sign-in: account tenant does not match the configured tenant.");
         return false;
       }
-      if (!isApprovedTeacher(microsoftProfile, teacherAccess)) {
-        console.warn(
-          "[auth] Denied sign-in: account is not in the configured teacher allowlist.",
-        );
-        return false;
-      }
       return Boolean(
         microsoftProfile.email ||
           microsoftProfile.preferred_username ||
@@ -74,16 +62,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.teacherEmail = user.email;
         token.teacherName = user.name;
-        // Sessions issued before teacher authorization existed are invalid.
-        token.teacherAuthorized = true;
       }
       return token;
     },
     async session({ session, token }) {
-      if (token.teacherAuthorized !== true) {
-        if (session.user) session.user.email = "";
-        return session;
-      }
       if (session.user) {
         session.user.email = (token.teacherEmail as string | undefined) ?? session.user.email;
         session.user.name = (token.teacherName as string | undefined) ?? session.user.name;

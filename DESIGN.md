@@ -790,9 +790,8 @@ Deliberate local-only choices:
   phone camera opens the site and, after sign-in, the student's form. Existing student-ID
   barcodes and legacy `ot://student/<token>` payloads are still accepted by the scanner
   and manual fallback.
-- Auth uses Microsoft Entra ID credentials read from the environment. Sign-in is restricted to
-  approved teachers through an Entra app role, security group, or email/domain allowlist, and
-  fails closed when no teacher allowlist is configured.
+- Auth uses Microsoft Entra ID credentials read from the environment. Any account in the
+  configured school tenant can sign in and create its own classes and rosters.
 - Accounts start with no demo classes, roster, or entries.
 
 Not yet in `web/`: class editing/deletion, behavior settings, custom report ranges,

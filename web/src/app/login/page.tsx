@@ -23,10 +23,9 @@ export default async function LoginPage({
   const session = await auth();
   if (session?.user?.email) redirect(redirectTo);
   const microsoft = getMicrosoftAuthStatus();
-  const signInAvailable = microsoft.configured && microsoft.teacherAccessConfigured;
   const errorText =
     error === "AccessDenied"
-      ? "That Microsoft account is not approved as a teacher for this workspace."
+      ? "That Microsoft account is not allowed for this school tenant."
       : error
         ? "Sign-in could not be completed. Check the Microsoft configuration or contact your administrator."
         : "";
@@ -64,7 +63,7 @@ export default async function LoginPage({
       <section className="space-y-3 lg:rounded-3xl lg:border lg:border-line lg:bg-surface lg:p-6 lg:shadow-xl">
         <div className="hidden lg:block">
           <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted">Sign in</p>
-          <h2 className="mt-1 text-2xl font-extrabold tracking-[-0.03em]">Teacher access</h2>
+          <h2 className="mt-1 text-2xl font-extrabold tracking-[-0.03em]">School sign-in</h2>
         </div>
 
         {errorText ? (
@@ -73,7 +72,7 @@ export default async function LoginPage({
           </p>
         ) : null}
 
-        {signInAvailable ? (
+        {microsoft.configured ? (
           <form action={signInWithMicrosoft}>
             <input type="hidden" name="next" value={redirectTo} />
             <button className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand text-sm font-bold text-white shadow-lg shadow-indigo-500/20">
@@ -86,31 +85,14 @@ export default async function LoginPage({
             <div className="flex items-start gap-3">
               <ShieldCheck size={20} className="mt-0.5 shrink-0 text-warn" />
               <div>
-                <p className="text-sm font-bold text-warn">
-                  {microsoft.configured
-                    ? "Teacher access needs configuration"
-                    : "Microsoft sign-in needs configuration"}
-                </p>
+                <p className="text-sm font-bold text-warn">Microsoft sign-in needs configuration</p>
                 <p className="mt-1 text-xs leading-5 text-muted">
-                  {microsoft.configured ? (
-                    <>
-                      Add at least one teacher allowlist to{" "}
-                      <code className="font-mono text-[11px]">web/.env.local</code>:{" "}
-                      <code className="font-mono text-[11px]">AUTH_TEACHER_ROLES</code>,{" "}
-                      <code className="font-mono text-[11px]">AUTH_TEACHER_GROUPS</code>,{" "}
-                      <code className="font-mono text-[11px]">AUTH_ALLOWED_EMAILS</code>, or{" "}
-                      <code className="font-mono text-[11px]">AUTH_ALLOWED_DOMAINS</code>.
-                    </>
-                  ) : (
-                    <>
-                      Register an Entra app and add the values to{" "}
-                      <code className="font-mono text-[11px]">web/.env.local</code>. Run{" "}
-                      <code className="font-mono text-[11px]">npm run auth:check</code> to see what
-                      is missing.
-                    </>
-                  )}
+                  Register an Entra app and add the values to{" "}
+                  <code className="font-mono text-[11px]">web/.env.local</code>. Run{" "}
+                  <code className="font-mono text-[11px]">npm run auth:check</code> to see what is
+                  missing.
                 </p>
-                {!microsoft.configured && microsoft.missing.length ? (
+                {microsoft.missing.length ? (
                   <p className="mt-2 font-mono text-[10px] leading-5 text-muted">
                     {microsoft.missing.join(" · ")}
                   </p>
@@ -121,11 +103,9 @@ export default async function LoginPage({
         )}
 
         <p className="text-center text-[11px] leading-5 text-muted">
-          {signInAvailable
-            ? "Use your approved school Microsoft account. Only teachers in the configured Entra role, group, or allowlist can sign in."
-            : microsoft.configured
-              ? "Microsoft sign-in is connected, but teacher access is not configured yet."
-              : "Real Microsoft sign-in cannot start until the Entra app registration is connected. Use fictional data."}
+          {microsoft.configured
+            ? "Use your school Microsoft account. Anyone in the district tenant can create a class and add students."
+            : "Real Microsoft sign-in cannot start until the Entra app registration is connected. Use fictional data."}
         </p>
       </section>
     </main>

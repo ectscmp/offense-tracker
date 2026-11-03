@@ -67,8 +67,8 @@ database so the next sign-in recreates the defaults. `npm run db:check` prints t
 status and collection counts.
 
 Real Microsoft sign-in is wired through Auth.js and Microsoft Entra ID. It requires a tenant
-app registration and a teacher allowlist (Entra app role, security group, or email/domain
-allowlist); follow [`web/AUTH_SETUP.md`](web/AUTH_SETUP.md). After adding the values, run:
+app registration; any account in that tenant can sign in and create classes. Follow
+[`web/AUTH_SETUP.md`](web/AUTH_SETUP.md). After adding the values, run:
 
 ```powershell
 cd web
@@ -107,11 +107,7 @@ reads [`web/railway.json`](web/railway.json) when the service root directory is 
    AUTH_MICROSOFT_ENTRA_ID_ID=<application-client-id>
    AUTH_MICROSOFT_ENTRA_ID_SECRET=<client-secret-value>
    AUTH_MICROSOFT_ENTRA_ID_ISSUER=https://login.microsoftonline.com/<directory-tenant-id>/v2.0
-   AUTH_TEACHER_ROLES=Teacher
    ```
-
-   Use `AUTH_TEACHER_GROUPS`, `AUTH_ALLOWED_EMAILS`, or `AUTH_ALLOWED_DOMAINS` instead of or
-   in addition to `AUTH_TEACHER_ROLES`. At least one teacher allowlist is required.
 
 5. Generate a public domain under **Settings → Networking**, set `AUTH_URL` to it, and
    register `https://<your-domain>.up.railway.app/api/auth/callback/microsoft-entra-id` on the
