@@ -10,7 +10,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="app-frame min-h-dvh pb-28 lg:pb-0 lg:pl-64">
       <PrimaryNav teacher={teacher} />
-      <div className="mx-auto w-full max-w-6xl">{children}</div>
+      <div className="mx-auto w-full max-w-[1800px]">{children}</div>
     </div>
   );
 }

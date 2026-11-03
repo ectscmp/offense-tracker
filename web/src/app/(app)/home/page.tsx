@@ -117,7 +117,7 @@ export default async function HomePage({
               </Link>
             </div>
             {data.latest.length ? (
-              <div className="space-y-2">
+              <div className="space-y-2 2xl:grid 2xl:grid-cols-2 2xl:gap-3 2xl:space-y-0">
                 {data.latest.map((incident) => (
                   <Link
                     key={incident.id}
@@ -181,6 +181,38 @@ export default async function HomePage({
             <p className="mt-0.5 text-[11px] text-muted">
               Room {classroom.room} · {data.rosterCount} students
             </p>
+          </div>
+
+          <div className="mt-4 hidden rounded-2xl border border-line bg-surface p-4 xl:block">
+            <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted">
+              Quick actions
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <Link
+                href="/roster"
+                className="flex h-10 items-center justify-center rounded-xl border border-line bg-surface-2 text-[11px] font-bold text-brand hover:border-brand/40"
+              >
+                Roster
+              </Link>
+              <Link
+                href="/reports"
+                className="flex h-10 items-center justify-center rounded-xl border border-line bg-surface-2 text-[11px] font-bold text-brand hover:border-brand/40"
+              >
+                Reports
+              </Link>
+              <Link
+                href="/roster/add"
+                className="flex h-10 items-center justify-center rounded-xl border border-line bg-surface-2 text-[11px] font-bold text-brand hover:border-brand/40"
+              >
+                Add students
+              </Link>
+              <Link
+                href="/roster/print"
+                className="flex h-10 items-center justify-center rounded-xl border border-line bg-surface-2 text-[11px] font-bold text-brand hover:border-brand/40"
+              >
+                QR cards
+              </Link>
+            </div>
           </div>
         </aside>
       </div>

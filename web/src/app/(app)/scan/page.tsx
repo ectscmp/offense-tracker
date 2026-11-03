@@ -97,7 +97,7 @@ export default async function ScanPage({
             />
           </form>
 
-          <div className="mt-4 space-y-2">
+          <div className="mt-4 space-y-2 2xl:grid 2xl:grid-cols-2 2xl:gap-3 2xl:space-y-0">
             {filtered.map((student) => (
               <Link
                 key={student.id}

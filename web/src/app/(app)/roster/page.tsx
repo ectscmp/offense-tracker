@@ -78,7 +78,7 @@ export default async function RosterPage({
         />
       </form>
 
-      <div className="mt-4 space-y-2 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
+      <div className="mt-4 space-y-2 lg:hidden">
         {filtered.map((student) => (
           <Link
             key={student.id}
@@ -101,6 +101,51 @@ export default async function RosterPage({
           </Link>
         ))}
       </div>
+
+      {filtered.length ? (
+        <div className="mt-4 hidden overflow-hidden rounded-2xl border border-line bg-surface lg:block">
+          <table className="w-full text-left">
+            <thead className="sticky top-0 z-10 bg-surface-2 text-[10px] uppercase tracking-[0.08em] text-muted">
+              <tr>
+                <th className="px-4 py-3 font-bold">Student</th>
+                <th className="px-4 py-3 font-bold">Student ID</th>
+                <th className="px-4 py-3 font-bold">Last entry</th>
+                <th className="px-4 py-3 text-right font-bold">Last 30 days</th>
+                <th className="w-12 px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {filtered.map((student) => (
+                <tr key={student.id} className="transition-colors hover:bg-surface-2">
+                  <td className="px-4 py-3">
+                    <Link
+                      href={`/student/${student.id}`}
+                      className="flex items-center gap-3 font-semibold"
+                    >
+                      <Avatar name={nameOf(student)} color={student.color} size="sm" />
+                      <span className="min-w-0 truncate text-sm">{nameOf(student)}</span>
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3 font-mono text-xs text-muted">{student.externalId}</td>
+                  <td className="px-4 py-3 text-xs text-muted">
+                    {student.lastAt ? formatDay(student.lastAt) : "No logs"}
+                  </td>
+                  <td className="px-4 py-3 text-right text-sm font-bold">{student.logs30d}</td>
+                  <td className="px-4 py-3 text-right">
+                    <Link
+                      href={`/student/${student.id}`}
+                      aria-label={`Open ${nameOf(student)}`}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-2 hover:bg-surface-2 hover:text-brand"
+                    >
+                      <ChevronRight size={16} />
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
 
       {!filtered.length ? (
         <div className="mt-4">
