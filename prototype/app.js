@@ -43,6 +43,12 @@
   const getClass = (id) => state.classes.find((c) => c.id === id);
   const getStudent = (id) => state.students.find((s) => s.id === id);
   const studentsInClass = (classId) => state.students.filter((s) => s.classIds.includes(classId));
+  const studentQrUrl = (student) => {
+    const url = new URL(location.href);
+    url.search = '';
+    url.hash = `#/student/${encodeURIComponent(student.id)}`;
+    return url.href;
+  };
   const classLabel = (c) => c ? `${c.period} · ${c.name}` : 'Class';
   const classShort = (c) => c ? `${c.period.replace('Period ', 'P')} · ${c.name}` : 'Class';
   const sortedIncidents = () => [...state.incidents].sort((a, b) => new Date(b.occurredAt) - new Date(a.occurredAt));
@@ -210,6 +216,18 @@
   let lastScanText = '';
   let lastScanAt = 0;
 
+  const NEXT_KEY = 'offense-tracker-next';
+  function rememberNext(hash) {
+    try { sessionStorage.setItem(NEXT_KEY, hash); } catch { /* private mode */ }
+  }
+  function takeNext() {
+    try {
+      const hash = sessionStorage.getItem(NEXT_KEY);
+      sessionStorage.removeItem(NEXT_KEY);
+      return hash || '';
+    } catch { return ''; }
+  }
+
   function parseRoute() {
     const raw = (location.hash || '#/login').replace(/^#/, '');
     const [path, query] = raw.split('?');
@@ -225,6 +243,7 @@
     stopScanner();
     const route = parseRoute();
     if (!state.auth && route.name !== 'login') {
+      if (location.hash) rememberNext(location.hash);
       history.replaceState(null, '', '#/login');
       return render();
     }
@@ -620,7 +639,10 @@
 
   function parseScan(text) {
     let id = String(text || '').trim();
-    const match = id.match(/ot:\/\/student\/([A-Za-z0-9_-]+)/i) || id.match(/\/s\/([A-Za-z0-9_-]+)/i);
+    const match = id.match(/ot:\/\/student\/([A-Za-z0-9_-]+)/i)
+      || id.match(/\/s\/([A-Za-z0-9_-]+)/i)
+      || id.match(/#\/student\/([A-Za-z0-9_-]+)/i)
+      || id.match(/[?&](?:code|student)=([A-Za-z0-9_-]+)/i);
     if (match) id = match[1];
     try { id = decodeURIComponent(id); } catch { /* noop */ }
     const student = state.students.find((s) => s.id === id) || state.students.find((s) => s.externalId === id);
@@ -691,7 +713,7 @@
     const cls = getClass(state.selectedClassId) || state.classes[0];
     const roster = studentsInClass(cls.id);
     const pick = roster[Math.floor(Math.random() * roster.length)];
-    if (mode === 'qr' && pick) handleScanText(`ot://student/${pick.id}`);
+    if (mode === 'qr' && pick) handleScanText(studentQrUrl(pick));
     else if (mode === 'id' && pick) handleScanText(pick.externalId);
     else if (mode === 'multi') {
       const student = getStudent('s9');
@@ -699,9 +721,9 @@
         state.selectedClassId = 'c1';
         saveState();
       }
-      handleScanText(`ot://student/${student.id}`);
-    } else if (mode === 'unauthorized') handleScanText('ot://student/s21');
-    else if (mode === 'unknown') handleScanText('ot://student/not_a_real_student');
+      handleScanText(studentQrUrl(student));
+    } else if (mode === 'unauthorized') handleScanText(studentQrUrl({ id: 's21' }));
+    else if (mode === 'unknown') handleScanText(studentQrUrl({ id: 'not_a_real_student' }));
   }
 
   function openDemoSheet() {
@@ -1866,13 +1888,13 @@
       <h2 class="qr-print-title">${esc(classLabel(cls))} · student QR cards</h2>
       <div class="qr-grid">
         ${roster.map((student) => `<div class="qr-card">
-          <div class="qr-canvas" data-qr="ot://student/${student.id}"></div>
+          <div class="qr-canvas" data-qr="${esc(studentQrUrl(student))}"></div>
           <p class="qr-name">${esc(nameOf(student))}</p>
           <p class="qr-meta">${esc(classShort(cls))}</p>
           <p class="qr-code">ID ${esc(student.externalId)}</p>
         </div>`).join('')}
       </div>
-      <p class="qr-foot no-print">Demo cards use readable student IDs. Production cards use opaque, revocable tokens with no student PII. Print on 2×6 labels or card stock.</p>
+      <p class="qr-foot no-print">Scan a card with any phone camera to open that student’s form. Demo cards use readable student IDs; production cards use opaque, revocable tokens with no student PII. Print on 2×6 labels or card stock.</p>
     `, 'qr-sheet');
 
     loadScript(QRCODE_SRC).then(() => {
@@ -1920,11 +1942,13 @@
       case 'close-sheet':
         closeSheet();
         break;
-      case 'login':
+      case 'login': {
         state.auth = true;
         saveState();
-        navigate('#/home');
+        const next = takeNext();
+        navigate(next && next !== '#/login' ? next : '#/home');
         break;
+      }
       case 'logout':
         state.auth = false;
         draft = null;

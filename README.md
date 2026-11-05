@@ -209,7 +209,8 @@ behave consistently on localhost.
 - 21 seeded fictional students and local, persistent demo data.
 - Camera scanning with torch support when the device exposes it, duplicate decode
   suppression, search/roster fallback, and demo scan outcomes.
-- Printable classroom QR cards using demo `ot://student/<id>` codes.
+- Printable classroom QR cards that encode an absolute app link, so any phone camera opens the
+  student form after sign-in (`ot://student/<id>` is still accepted by the scanner).
 - Student form with multi-select Positive/Concern behaviors, an always-present system
   **Other** behavior, optional notes, configurable required notes, optional severity,
   editable time, duplicate warning, Save, Save & scan next, and Undo.
