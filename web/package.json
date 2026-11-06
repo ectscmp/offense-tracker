@@ -10,7 +10,8 @@
     "check": "tsc --noEmit",
     "auth:check": "node scripts/check-auth.mjs",
     "db:check": "node scripts/check-db.mjs",
-    "db:reset": "node scripts/reset-db.mjs"
+    "db:reset": "node scripts/reset-db.mjs",
+    "dev:db:reset": "node scripts/reset-dev-db.mjs"
   },
   "dependencies": {
     "@zxing/browser": "^0.2.1",

@@ -20,7 +20,7 @@ import {
   greeting,
   nameOf,
 } from "@/lib/format";
-import { getClassCounts, getClasses, getDashboard, getSelectedClass } from "@/lib/db";
+import { getClassCounts, getClasses, getDashboard, getSelectedClass } from "@/lib/store";
 import { getCurrentTeacher } from "@/lib/session";
 
 export const metadata = {

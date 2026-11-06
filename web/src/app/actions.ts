@@ -4,14 +4,20 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
   addStudentsBulk,
+  archiveClass,
   createClass,
   createIncident,
+  deleteClass,
   getBehaviors,
   getSettings,
   isStudentInClass,
+  removeStudentFromClass,
   resolveScannedStudent,
+  restoreClass,
   selectClass,
-} from "@/lib/db";
+  updateClass,
+  updateStudent,
+} from "@/lib/store";
 import { classLabel } from "@/lib/format";
 import { parseBulkStudents } from "@/lib/parse-students";
 import { getCurrentTeacher } from "@/lib/session";
@@ -32,6 +38,116 @@ export async function createClassAction(formData: FormData) {
   }
 
   revalidatePath("/", "layout");
+  redirect("/roster");
+}
+
+export async function updateClassAction(formData: FormData) {
+  const teacher = await getCurrentTeacher();
+  if (!teacher) throw new Error("Unauthorized");
+
+  const classId = String(formData.get("classId") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const period = String(formData.get("period") ?? "").trim();
+  const room = String(formData.get("room") ?? "").trim();
+  if (!classId) redirect("/settings");
+  if (!name || !period) redirect(`/classes/${classId}/edit?error=missing`);
+
+  try {
+    await updateClass(teacher.id, classId, { name, period, room });
+  } catch {
+    redirect(`/classes/${classId}/edit?error=save`);
+  }
+
+  revalidatePath("/", "layout");
+  redirect("/settings");
+}
+
+export async function archiveClassAction(formData: FormData) {
+  const teacher = await getCurrentTeacher();
+  if (!teacher) throw new Error("Unauthorized");
+
+  const classId = String(formData.get("classId") ?? "");
+  if (!classId) return;
+  await archiveClass(teacher.id, classId);
+
+  revalidatePath("/", "layout");
+  redirect("/settings");
+}
+
+export async function restoreClassAction(formData: FormData) {
+  const teacher = await getCurrentTeacher();
+  if (!teacher) throw new Error("Unauthorized");
+
+  const classId = String(formData.get("classId") ?? "");
+  if (!classId) return;
+  await restoreClass(teacher.id, classId);
+
+  revalidatePath("/", "layout");
+  redirect("/settings");
+}
+
+export async function deleteClassAction(formData: FormData) {
+  const teacher = await getCurrentTeacher();
+  if (!teacher) throw new Error("Unauthorized");
+
+  const classId = String(formData.get("classId") ?? "");
+  if (!classId) return;
+  await deleteClass(teacher.id, classId);
+
+  revalidatePath("/", "layout");
+  redirect("/settings");
+}
+
+export type StudentEditState = {
+  ok: false;
+  message: string;
+} | null;
+
+export async function updateStudentAction(
+  _previous: StudentEditState,
+  formData: FormData,
+): Promise<StudentEditState> {
+  const teacher = await getCurrentTeacher();
+  if (!teacher) return { ok: false, message: "Your session expired. Sign in again." };
+
+  const studentId = String(formData.get("studentId") ?? "");
+  const firstName = String(formData.get("firstName") ?? "").trim();
+  const lastName = String(formData.get("lastName") ?? "").trim();
+  const externalId = String(formData.get("externalId") ?? "").trim();
+  if (!studentId) return { ok: false, message: "Missing student." };
+  if (!firstName || !lastName || !externalId) {
+    return { ok: false, message: "Add a first name, last name, and student ID." };
+  }
+
+  try {
+    await updateStudent(teacher.id, studentId, { firstName, lastName, externalId });
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Could not save those changes.",
+    };
+  }
+
+  revalidatePath("/roster");
+  revalidatePath("/home");
+  revalidatePath("/reports");
+  revalidatePath(`/student/${studentId}`);
+  redirect(`/student/${studentId}`);
+}
+
+export async function removeStudentAction(formData: FormData) {
+  const teacher = await getCurrentTeacher();
+  if (!teacher) throw new Error("Unauthorized");
+
+  const classId = String(formData.get("classId") ?? "");
+  const studentId = String(formData.get("studentId") ?? "");
+  if (!classId || !studentId) redirect("/roster");
+
+  await removeStudentFromClass(teacher.id, classId, studentId);
+
+  revalidatePath("/roster");
+  revalidatePath("/home");
+  revalidatePath("/reports");
   redirect("/roster");
 }
 

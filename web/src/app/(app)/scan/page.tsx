@@ -12,7 +12,7 @@ import {
   getRoster,
   getSelectedClass,
   resolveScannedStudent,
-} from "@/lib/db";
+} from "@/lib/store";
 import { getCurrentTeacher } from "@/lib/session";
 
 export const metadata = {

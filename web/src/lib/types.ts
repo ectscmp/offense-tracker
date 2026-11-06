@@ -7,6 +7,7 @@ export type Classroom = {
   name: string;
   room: string;
   color: string;
+  archivedAt: string | null;
 };
 
 export type Student = {
@@ -20,6 +21,8 @@ export type Student = {
 
 export type RosterStudent = Student & {
   logs30d: number;
+  positive30d: number;
+  concern30d: number;
   lastAt: string | null;
 };
 

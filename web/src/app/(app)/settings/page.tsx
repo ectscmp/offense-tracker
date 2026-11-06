@@ -1,8 +1,10 @@
-import { Building2, LogOut, Plus } from "lucide-react";
+import { Archive, Building2, LogOut, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { classLabel } from "@/lib/format";
-import { getClassCounts, getClasses, getStats } from "@/lib/db";
+import { archiveClassAction, deleteClassAction, restoreClassAction } from "@/app/actions";
+import { ConfirmForm } from "@/components/confirm-form";
+import { classLabel, formatDay } from "@/lib/format";
+import { getArchivedClasses, getClassCounts, getClasses, getStats } from "@/lib/store";
 import { getCurrentTeacher } from "@/lib/session";
 import { signOutAction } from "@/app/login/actions";
 
@@ -15,6 +17,7 @@ export default async function SettingsPage() {
   if (!teacher) redirect("/login");
 
   const classes = await getClasses(teacher.id);
+  const archived = await getArchivedClasses(teacher.id);
   const counts = await getClassCounts(teacher.id);
   const stats = await getStats(teacher.id);
 
@@ -43,21 +46,45 @@ export default async function SettingsPage() {
               {classes.map((classroom) => (
                 <div
                   key={classroom.id}
-                  className="flex items-center gap-3 rounded-xl bg-surface-2 p-3"
+                  className="flex items-center gap-2 rounded-xl bg-surface-2 p-3"
                 >
                   <span
-                    className="h-2.5 w-2.5 rounded-full"
+                    className="h-2.5 w-2.5 shrink-0 rounded-full"
                     style={{ background: classroom.color }}
                   />
                   <span className="min-w-0 flex-1">
                     <strong className="block truncate text-xs">{classLabel(classroom)}</strong>
-                    <small className="text-[10px] text-muted">Room {classroom.room}</small>
+                    <small className="text-[10px] text-muted">
+                      Room {classroom.room} · {counts[classroom.id] ?? 0} students
+                    </small>
                   </span>
-                  <span className="text-[11px] font-bold text-muted">
-                    {counts[classroom.id] ?? 0}
-                  </span>
+                  <Link
+                    href={`/classes/${classroom.id}/edit`}
+                    aria-label={`Edit ${classLabel(classroom)}`}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-line text-muted hover:bg-surface hover:text-brand"
+                  >
+                    <Pencil size={15} />
+                  </Link>
+                  <ConfirmForm
+                    action={archiveClassAction}
+                    confirmMessage={`Archive ${classLabel(classroom)}? You can restore it from Settings.`}
+                    hidden={{ classId: classroom.id }}
+                  >
+                    <button
+                      aria-label={`Archive ${classLabel(classroom)}`}
+                      title="Archive class"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-line text-muted hover:bg-surface hover:text-warn"
+                    >
+                      <Archive size={15} />
+                    </button>
+                  </ConfirmForm>
                 </div>
               ))}
+              {!classes.length ? (
+                <p className="rounded-xl bg-surface-2 p-3 text-[11px] text-muted">
+                  No active classes. Add one to start a roster.
+                </p>
+              ) : null}
             </div>
             <Link
               href="/classes/new"
@@ -66,6 +93,60 @@ export default async function SettingsPage() {
               <Plus size={16} />
               Add a class
             </Link>
+
+            {archived.length ? (
+              <div className="mt-4 border-t border-line pt-3">
+                <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted">
+                  Archived classes
+                </p>
+                <div className="mt-2 space-y-2">
+                  {archived.map((classroom) => (
+                    <div
+                      key={classroom.id}
+                      className="flex items-center gap-2 rounded-xl border border-line bg-surface p-3"
+                    >
+                      <span
+                        className="h-2.5 w-2.5 shrink-0 rounded-full opacity-50"
+                        style={{ background: classroom.color }}
+                      />
+                      <span className="min-w-0 flex-1">
+                        <strong className="block truncate text-xs">{classLabel(classroom)}</strong>
+                        <small className="text-[10px] text-muted">
+                          Archived {classroom.archivedAt ? formatDay(classroom.archivedAt) : ""} ·{" "}
+                          {counts[classroom.id] ?? 0} students
+                        </small>
+                      </span>
+                      <ConfirmForm
+                        action={restoreClassAction}
+                        confirmMessage={`Restore ${classLabel(classroom)}?`}
+                        hidden={{ classId: classroom.id }}
+                      >
+                        <button
+                          aria-label={`Restore ${classLabel(classroom)}`}
+                          title="Restore class"
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-line text-muted hover:bg-surface-2 hover:text-brand"
+                        >
+                          <RotateCcw size={15} />
+                        </button>
+                      </ConfirmForm>
+                      <ConfirmForm
+                        action={deleteClassAction}
+                        confirmMessage={`Permanently delete ${classLabel(classroom)}? This also removes its roster and all behavior entries for this class. This cannot be undone.`}
+                        hidden={{ classId: classroom.id }}
+                      >
+                        <button
+                          aria-label={`Delete ${classLabel(classroom)} permanently`}
+                          title="Delete class permanently"
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-concern/30 text-concern hover:bg-concern-soft"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </ConfirmForm>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </section>
 
           <section className="grid grid-cols-3 gap-2">

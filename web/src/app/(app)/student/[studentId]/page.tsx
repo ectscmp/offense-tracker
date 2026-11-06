@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronRight, Clock3, History } from "lucide-react";
+import { ArrowLeft, Clock3, History, Pencil } from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Avatar } from "@/components/avatar";
@@ -11,7 +11,7 @@ import {
   getStudent,
   getStudentClass,
   getStudentHistory,
-} from "@/lib/db";
+} from "@/lib/store";
 import { getCurrentTeacher } from "@/lib/session";
 
 export default async function StudentPage({
@@ -46,7 +46,7 @@ export default async function StudentPage({
         >
           <ArrowLeft size={18} />
         </Link>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="truncate text-[10px] font-bold uppercase tracking-[0.12em] text-muted">
             {classLabel(classroom)}
           </p>
@@ -54,6 +54,13 @@ export default async function StudentPage({
             {nameOf(student)}
           </h1>
         </div>
+        <Link
+          href={`/student/${student.id}/edit`}
+          aria-label={`Edit ${nameOf(student)}`}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line bg-surface"
+        >
+          <Pencil size={16} />
+        </Link>
       </header>
 
       <div className="px-5 lg:px-10">
@@ -102,7 +109,6 @@ export default async function StudentPage({
                       <span className="text-[11px] font-bold">
                         {formatRelativeDay(incident.occurredAt)}
                       </span>
-                      <ChevronRight size={14} className="text-muted-2" />
                     </div>
                     <div className="mt-2 flex flex-wrap gap-1">
                       {incident.behaviors.map((behavior) => (

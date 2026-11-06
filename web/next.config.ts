@@ -1,6 +1,16 @@
 import type { NextConfig } from "next";
 import { SECURITY_HEADERS } from "./src/lib/security-headers";
 
+// Development-only modules are replaced with tiny stubs in production builds so
+// the local JSON store and dev sign-in UI cannot ship to a deployed app.
+const productionOnlyAliases: Record<string, string> =
+  process.env.NODE_ENV === "production"
+    ? {
+        "@/lib/db-local": "./src/lib/db-local.prod.ts",
+        "@/components/dev-login-panel": "./src/components/dev-login-panel.prod.tsx",
+      }
+    : {};
+
 const nextConfig: NextConfig = {
   // Do not advertise the framework in responses.
   poweredByHeader: false,
@@ -14,6 +24,7 @@ const nextConfig: NextConfig = {
   // leaves a second lockfile. Pin tracing to this app directory.
   outputFileTracingRoot: process.cwd(),
   turbopack: {
+    resolveAlias: productionOnlyAliases,
     rules: {
       "*.css": {
         loaders: ["@tailwindcss/turbopack"],

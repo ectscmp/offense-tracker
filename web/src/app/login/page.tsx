@@ -1,7 +1,10 @@
 import { BarChart3, Building2, ScanLine, ShieldCheck } from "lucide-react";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { DevLoginPanel } from "@/components/dev-login-panel";
 import { getMicrosoftAuthStatus } from "@/lib/auth-config";
+import { DEV_SIGNED_OUT_COOKIE, isDevAuthEnabled } from "@/lib/dev-auth";
 import { signInWithMicrosoft } from "./actions";
 
 export const metadata = {
@@ -23,6 +26,8 @@ export default async function LoginPage({
   const session = await auth();
   if (session?.user?.email) redirect(redirectTo);
   const microsoft = getMicrosoftAuthStatus();
+  const devAuthEnabled = isDevAuthEnabled();
+  const devSignedOut = devAuthEnabled && (await cookies()).has(DEV_SIGNED_OUT_COOKIE);
   const errorText =
     error === "AccessDenied"
       ? "That Microsoft account is not allowed for this school tenant."
@@ -72,6 +77,10 @@ export default async function LoginPage({
           </p>
         ) : null}
 
+        {devAuthEnabled ? (
+          <DevLoginPanel next={redirectTo} autoSignIn={!devSignedOut} />
+        ) : null}
+
         {microsoft.configured ? (
           <form action={signInWithMicrosoft}>
             <input type="hidden" name="next" value={redirectTo} />
@@ -80,7 +89,7 @@ export default async function LoginPage({
               Continue with Microsoft
             </button>
           </form>
-        ) : (
+        ) : devAuthEnabled ? null : (
           <div className="rounded-2xl border border-warn/30 bg-warn-soft p-4">
             <div className="flex items-start gap-3">
               <ShieldCheck size={20} className="mt-0.5 shrink-0 text-warn" />
@@ -103,9 +112,11 @@ export default async function LoginPage({
         )}
 
         <p className="text-center text-[11px] leading-5 text-muted">
-          {microsoft.configured
-            ? "Use your school Microsoft account. Anyone in the district tenant can create a class and add students."
-            : "Real Microsoft sign-in cannot start until the Entra app registration is connected. Use fictional data."}
+          {devAuthEnabled
+            ? "Local development account. Microsoft sign-in is optional while running the dev server."
+            : microsoft.configured
+              ? "Use your school Microsoft account. Anyone in the district tenant can create a class and add students."
+              : "Real Microsoft sign-in cannot start until the Entra app registration is connected. Use fictional data."}
         </p>
       </section>
     </main>

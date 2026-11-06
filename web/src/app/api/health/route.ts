@@ -1,4 +1,4 @@
-import { pingDatabase } from "@/lib/db";
+import { pingDatabase } from "@/lib/store";
 
 // Railway (and any other platform) can hit this to verify the app and database.
 export const dynamic = "force-dynamic";

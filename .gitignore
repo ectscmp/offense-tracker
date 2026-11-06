@@ -21,6 +21,9 @@ web/data/*.db
 web/data/*.db-shm
 web/data/*.db-wal
 
+# development-only JSON data store
+web/.data/
+
 # misc
 .DS_Store
 *.pem

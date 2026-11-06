@@ -47,11 +47,18 @@ npm run dev
 Open **http://localhost:3000**. From the repository root you can also run `npm run web`
 (development) or `npm run web:build`.
 
+In development, sign-in is skipped: the app automatically uses a local test account stored in
+browser localStorage. Application data also uses a local JSON store, so dev does not connect to
+MongoDB. Production builds cannot register that provider or use the local store. See
+[`web/README.md`](web/README.md#development-sign-in).
+
 What is implemented in this first production slice:
 
 - Auth.js sign-in with Microsoft Entra ID wiring
 - Server-rendered home dashboard with class context and live stats
-- Teacher-created classes, class switching, and class-scoped rosters
+- Teacher-created classes, class switching, class editing, archiving/restoring, and
+  permanent deletion
+- Class-scoped rosters with per-student editing and removal
 - Student history and the core behavior entry form
 - Camera scanning with ZXing, a manual code fallback, and cross-class resolution
 - Opaque QR tokens and printable student QR cards
@@ -305,8 +312,8 @@ The `web/` app is a first vertical slice, not a finished release.
 - **MongoDB is wired, but not hardened.** The repository interface is isolated in
   `web/src/lib/db.ts`; indexes are created on connect. Tenant-scoped repositories, backup and
   restore drills, and access review are still required.
-- **Class editing/deleting and behavior settings are not in the production UI yet.** Class
-  creation, roster import, scanning, and the first logging flow are implemented.
+- **Behavior settings are not in the production UI yet.** Class creation/editing, archiving,
+  deletion, roster import, scanning, and the first logging flow are implemented.
 - **QR tokens are opaque but not revocable from the UI yet.** Plan token rotation/reprint
   controls before a pilot.
 - **Reports need custom dates, CSV export, and print.** Current reports are 7/30 days.

@@ -772,7 +772,9 @@ Implemented:
 
 - Auth.js v5 with Microsoft Entra ID wiring plus a development-only sign-in
 - Teacher-scoped MongoDB repository behind a small data-access module
-- Teacher-created classes, class context, roster search, student history, and behavior entry
+- Teacher-created classes, class editing, archive/restore, permanent deletion, class context,
+  roster search, and behavior entry
+- Roster editing, including student name/ID changes and removal from a class
 - Camera scanning (ZXing) plus manual-code fallback, with cross-class resolution
 - Opaque per-student QR tokens and a printable two-column QR card sheet
 - Bulk roster import with preview, validation, transactions, duplicate skipping, and
@@ -794,6 +796,6 @@ Deliberate local-only choices:
   configured school tenant can sign in and create its own classes and rosters.
 - Accounts start with no demo classes, roster, or entries.
 
-Not yet in `web/`: class editing/deletion, behavior settings, custom report ranges,
-CSV/PDF export, QR token rotation, audit/retention, role management, PWA/offline.
+Not yet in `web/`: behavior settings, custom report ranges, CSV/PDF export, QR token
+rotation, audit/retention, role management, PWA/offline.
 These are the next slices, not completed production claims.

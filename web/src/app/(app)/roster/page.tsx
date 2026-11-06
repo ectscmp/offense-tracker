@@ -1,11 +1,11 @@
-import { ChevronRight, Plus, Printer, Search, Users } from "lucide-react";
+import { ChevronRight, Pencil, Plus, Printer, Search, Users } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Avatar } from "@/components/avatar";
 import { ClassSwitcher } from "@/components/class-switcher";
 import { EmptyState } from "@/components/empty-state";
 import { formatDay, nameOf } from "@/lib/format";
-import { getClassCounts, getClasses, getRoster, getSelectedClass } from "@/lib/db";
+import { getClassCounts, getClasses, getRoster, getSelectedClass } from "@/lib/store";
 import { getCurrentTeacher } from "@/lib/session";
 
 export const metadata = {
@@ -63,7 +63,10 @@ export default async function RosterPage({
       </div>
 
       <p className="mt-2 px-1 text-[11px] text-muted">
-        {roster.length} students · {counts[classroom.id] ?? 0} enrolled
+        {roster.length} students · {counts[classroom.id] ?? 0} enrolled · last 30d{" "}
+        <span className="font-bold text-positive">positive</span>
+        <span className="mx-0.5">/</span>
+        <span className="font-bold text-concern">concern</span>
       </p>
 
       <form method="get" className="relative mt-4 lg:max-w-xl">
@@ -80,25 +83,43 @@ export default async function RosterPage({
 
       <div className="mt-4 space-y-2 lg:hidden">
         {filtered.map((student) => (
-          <Link
+          <div
             key={student.id}
-            href={`/student/${student.id}`}
-            className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-3 transition-colors hover:border-line-strong hover:bg-surface-2"
+            className="flex items-center gap-2 rounded-2xl border border-line bg-surface p-3"
           >
-            <Avatar name={nameOf(student)} color={student.color} />
-            <span className="min-w-0 flex-1">
-              <strong className="block truncate text-sm">{nameOf(student)}</strong>
-              <span className="mt-0.5 block truncate text-[11px] text-muted">
-                ID {student.externalId}
-                {student.lastAt ? ` · ${formatDay(student.lastAt)}` : " · no logs"}
+            <Link
+              href={`/student/${student.id}`}
+              className="flex min-w-0 flex-1 items-center gap-3 transition-colors hover:text-brand"
+            >
+              <Avatar name={nameOf(student)} color={student.color} />
+              <span className="min-w-0 flex-1">
+                <strong className="block truncate text-sm">{nameOf(student)}</strong>
+                <span className="mt-0.5 block truncate text-[11px] text-muted">
+                  ID {student.externalId}
+                  {student.lastAt ? ` · ${formatDay(student.lastAt)}` : " · no logs"}
+                </span>
               </span>
-            </span>
-            <span className="rounded-lg bg-surface-2 px-2 py-1 text-center">
-              <strong className="block text-sm leading-4">{student.logs30d}</strong>
-              <small className="text-[8px] font-bold uppercase tracking-wide text-muted">30d</small>
-            </span>
-            <ChevronRight size={16} className="text-muted-2" />
-          </Link>
+              <span
+                className="rounded-lg bg-surface-2 px-2 py-1 text-center"
+                title={`${student.positive30d} positive, ${student.concern30d} concern in the last 30 days`}
+              >
+                <strong className="flex items-baseline justify-center gap-1 text-sm leading-4 font-bold">
+                  <span className="text-positive">{student.positive30d}</span>
+                  <span className="text-[9px] text-muted-2">/</span>
+                  <span className="text-concern">{student.concern30d}</span>
+                </strong>
+                <small className="block text-[8px] font-bold uppercase tracking-wide text-muted">30d</small>
+              </span>
+              <ChevronRight size={16} className="text-muted-2" />
+            </Link>
+            <Link
+              href={`/student/${student.id}/edit`}
+              aria-label={`Edit ${nameOf(student)}`}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-line text-muted-2 hover:bg-surface-2 hover:text-brand"
+            >
+              <Pencil size={15} />
+            </Link>
+          </div>
         ))}
       </div>
 
@@ -130,15 +151,28 @@ export default async function RosterPage({
                   <td className="px-4 py-3 text-xs text-muted">
                     {student.lastAt ? formatDay(student.lastAt) : "No logs"}
                   </td>
-                  <td className="px-4 py-3 text-right text-sm font-bold">{student.logs30d}</td>
+                  <td className="px-4 py-3 text-right text-xs font-bold">
+                    <span className="text-positive">{student.positive30d} positive</span>
+                    <span className="mx-1.5 text-muted-2">·</span>
+                    <span className="text-concern">{student.concern30d} concern</span>
+                  </td>
                   <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/student/${student.id}`}
-                      aria-label={`Open ${nameOf(student)}`}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-2 hover:bg-surface-2 hover:text-brand"
-                    >
-                      <ChevronRight size={16} />
-                    </Link>
+                    <div className="flex items-center justify-end gap-1">
+                      <Link
+                        href={`/student/${student.id}/edit`}
+                        aria-label={`Edit ${nameOf(student)}`}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-2 hover:bg-surface-2 hover:text-brand"
+                      >
+                        <Pencil size={15} />
+                      </Link>
+                      <Link
+                        href={`/student/${student.id}`}
+                        aria-label={`Open ${nameOf(student)}`}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-2 hover:bg-surface-2 hover:text-brand"
+                      >
+                        <ChevronRight size={16} />
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))}

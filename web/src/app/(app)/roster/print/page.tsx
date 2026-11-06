@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/empty-state";
 import { PrintButton } from "@/components/print-button";
 import { getAppOrigin, studentQrUrl } from "@/lib/app-url";
 import { classLabel, classShort, nameOf } from "@/lib/format";
-import { getRoster, getSelectedClass } from "@/lib/db";
+import { getRoster, getSelectedClass } from "@/lib/store";
 import { getCurrentTeacher } from "@/lib/session";
 
 export const metadata = {

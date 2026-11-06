@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { ensureTeacher } from "@/lib/db";
+import { ensureTeacher } from "@/lib/store";
 import type { Teacher } from "@/lib/types";
 
 export async function getCurrentTeacher(): Promise<Teacher | null> {

@@ -47,6 +47,7 @@ type ClassDoc = {
   name: string;
   room: string;
   color: string;
+  archivedAt: Date | null;
   createdAt: Date;
 };
 
@@ -199,6 +200,7 @@ function mapClass(doc: ClassDoc): Classroom {
     name: doc.name,
     room: doc.room,
     color: doc.color,
+    archivedAt: doc.archivedAt ? doc.archivedAt.toISOString() : null,
   };
 }
 
@@ -309,13 +311,25 @@ export async function ensureTeacher(input: { email: string; name: string }): Pro
 
 export async function getClasses(teacherId: string): Promise<Classroom[]> {
   const { classes } = await connect();
-  const docs = await classes.find({ teacherId }).sort({ createdAt: 1, period: 1 }).toArray();
+  const docs = await classes
+    .find({ teacherId, archivedAt: null })
+    .sort({ createdAt: 1, period: 1 })
+    .toArray();
+  return docs.map(mapClass);
+}
+
+export async function getArchivedClasses(teacherId: string): Promise<Classroom[]> {
+  const { classes } = await connect();
+  const docs = await classes
+    .find({ teacherId, archivedAt: { $exists: true, $ne: null } })
+    .sort({ archivedAt: -1 })
+    .toArray();
   return docs.map(mapClass);
 }
 
 export async function getClass(teacherId: string, classId: string): Promise<Classroom | undefined> {
   const { classes } = await connect();
-  const doc = await classes.findOne({ _id: classId, teacherId });
+  const doc = await classes.findOne({ _id: classId, teacherId, archivedAt: null });
   return doc ? mapClass(doc) : undefined;
 }
 
@@ -359,11 +373,103 @@ export async function createClass(
     name,
     room,
     color,
+    archivedAt: null,
     createdAt: new Date(),
   };
   await classes.insertOne(doc);
   await teachers.updateOne({ _id: teacherId }, { $set: { selectedClassId: id } });
   return mapClass(doc);
+}
+
+export async function updateClass(
+  teacherId: string,
+  classId: string,
+  input: { name: string; period: string; room: string },
+): Promise<Classroom> {
+  const name = input.name.trim();
+  const rawPeriod = input.period.trim();
+  if (!name || !rawPeriod) throw new Error("A class name and period are required.");
+  const period = /^\d+$/.test(rawPeriod) ? `Period ${rawPeriod}` : rawPeriod;
+  const room = input.room.trim() || "TBD";
+
+  const { classes } = await connect();
+  const result = await classes.updateOne(
+    { _id: classId, teacherId, archivedAt: null },
+    { $set: { name, period, room } },
+  );
+  if (!result.matchedCount) throw new Error("Class not found.");
+
+  const updated = await classes.findOne({ _id: classId, teacherId });
+  if (!updated) throw new Error("Class not found.");
+  return mapClass(updated);
+}
+
+async function selectFallbackClass(teacherId: string, removedClassId: string) {
+  const { teachers } = await connect();
+  const teacher = await teachers.findOne(
+    { _id: teacherId },
+    { projection: { selectedClassId: 1 } },
+  );
+  if (teacher?.selectedClassId !== removedClassId) return;
+
+  const next = (await getClasses(teacherId))[0];
+  await teachers.updateOne(
+    { _id: teacherId },
+    { $set: { selectedClassId: next?.id ?? null } },
+  );
+}
+
+export async function archiveClass(teacherId: string, classId: string): Promise<void> {
+  const { classes } = await connect();
+  const result = await classes.updateOne(
+    { _id: classId, teacherId, archivedAt: null },
+    { $set: { archivedAt: new Date() } },
+  );
+  if (!result.matchedCount) throw new Error("Class not found.");
+  await selectFallbackClass(teacherId, classId);
+}
+
+export async function restoreClass(teacherId: string, classId: string): Promise<void> {
+  const { classes } = await connect();
+  const result = await classes.updateOne(
+    { _id: classId, teacherId, archivedAt: { $ne: null } },
+    { $set: { archivedAt: null } },
+  );
+  if (!result.matchedCount) throw new Error("Archived class not found.");
+}
+
+export async function deleteClass(teacherId: string, classId: string): Promise<void> {
+  const { classes, students, incidents } = await connect();
+  const doc = await classes.findOne({ _id: classId, teacherId });
+  if (!doc) throw new Error("Class not found.");
+
+  const affected = await students
+    .find({ teacherId, classIds: classId }, { projection: { _id: 1 } })
+    .toArray();
+
+  await Promise.all([
+    classes.deleteOne({ _id: classId, teacherId }),
+    students.updateMany({ teacherId, classIds: classId }, { $pull: { classIds: classId } }),
+    incidents.deleteMany({ teacherId, classId }),
+  ]);
+
+  // A student enrolled only in this class no longer belongs to any roster.
+  const affectedIds = affected.map((student) => student._id);
+  if (affectedIds.length) {
+    const orphans = await students
+      .find(
+        { _id: { $in: affectedIds }, teacherId, classIds: { $size: 0 } },
+        { projection: { _id: 1 } },
+      )
+      .toArray();
+    const orphanIds = orphans.map((student) => student._id);
+    if (orphanIds.length) {
+      await incidents.deleteMany({ teacherId, studentId: { $in: orphanIds } });
+      await students.deleteMany({ _id: { $in: orphanIds }, teacherId });
+    }
+  }
+
+  await selectFallbackClass(teacherId, classId);
 }
 
 export async function getClassCounts(teacherId: string): Promise<Record<string, number>> {
@@ -387,7 +493,13 @@ export async function getRoster(teacherId: string, classId: string): Promise<Ros
   const ids = docs.map((doc) => doc._id);
   const activity = ids.length
     ? await incidents
-        .aggregate<{ _id: string; logs30d: number; lastAt: Date }>([
+        .aggregate<{
+          _id: string;
+          logs30d: number;
+          positive30d: number;
+          concern30d: number;
+          lastAt: Date;
+        }>([
           {
             $match: {
               teacherId,
@@ -397,9 +509,34 @@ export async function getRoster(teacherId: string, classId: string): Promise<Ros
             },
           },
           {
+            $project: {
+              occurredAt: 1,
+              positive: {
+                $size: {
+                  $filter: {
+                    input: "$behaviors",
+                    as: "behavior",
+                    cond: { $eq: ["$$behavior.tone", "positive"] },
+                  },
+                },
+              },
+              concern: {
+                $size: {
+                  $filter: {
+                    input: "$behaviors",
+                    as: "behavior",
+                    cond: { $eq: ["$$behavior.tone", "concern"] },
+                  },
+                },
+              },
+            },
+          },
+          {
             $group: {
               _id: "$studentId",
               logs30d: { $sum: 1 },
+              positive30d: { $sum: "$positive" },
+              concern30d: { $sum: "$concern" },
               lastAt: { $max: "$occurredAt" },
             },
           },
@@ -413,6 +550,8 @@ export async function getRoster(teacherId: string, classId: string): Promise<Ros
     return {
       ...mapStudent(doc),
       logs30d: Number(row?.logs30d ?? 0),
+      positive30d: Number(row?.positive30d ?? 0),
+      concern30d: Number(row?.concern30d ?? 0),
       lastAt: row?.lastAt ? row.lastAt.toISOString() : null,
     };
   });
@@ -665,6 +804,68 @@ export async function getStudent(teacherId: string, studentId: string): Promise<
   return doc ? mapStudent(doc) : undefined;
 }
 
+export async function updateStudent(
+  teacherId: string,
+  studentId: string,
+  input: { firstName: string; lastName: string; externalId: string },
+): Promise<Student> {
+  const firstName = input.firstName.trim();
+  const lastName = input.lastName.trim();
+  const externalId = input.externalId.trim();
+  if (!firstName || !lastName || !externalId) {
+    throw new Error("A first name, last name, and student ID are required.");
+  }
+
+  const { students } = await connect();
+  const externalIdLower = externalId.toLowerCase();
+  const duplicate = await students.findOne({
+    teacherId,
+    externalIdLower,
+    _id: { $ne: studentId },
+  });
+  if (duplicate) throw new Error("That student ID is already used by another student.");
+
+  try {
+    const result = await students.updateOne(
+      { _id: studentId, teacherId },
+      { $set: { firstName, lastName, externalId, externalIdLower } },
+    );
+    if (!result.matchedCount) throw new Error("Student not found.");
+  } catch (error) {
+    if (isDuplicateKey(error)) {
+      throw new Error("That student ID is already used by another student.");
+    }
+    throw error;
+  }
+
+  const updated = await students.findOne({ _id: studentId, teacherId });
+  if (!updated) throw new Error("Student not found.");
+  return mapStudent(updated);
+}
+
+export async function removeStudentFromClass(
+  teacherId: string,
+  classId: string,
+  studentId: string,
+): Promise<void> {
+  const { students, incidents } = await connect();
+  const student = await students.findOne({ _id: studentId, teacherId });
+  if (!student) throw new Error("Student not found.");
+  if (!student.classIds.includes(classId)) throw new Error("Student is not in this class.");
+
+  const remaining = student.classIds.filter((id) => id !== classId);
+  if (remaining.length) {
+    await students.updateOne(
+      { _id: studentId, teacherId },
+      { $set: { classIds: remaining } },
+    );
+    return;
+  }
+
+  await students.deleteOne({ _id: studentId, teacherId });
+  await incidents.deleteMany({ teacherId, studentId });
+}
+
 /**
  * Reduce any accepted scan payload to the opaque token or student ID:
  * legacy `ot://student/<token>`, printed `https://host/s/<token>` links,
@@ -798,7 +999,7 @@ export async function getReport(teacherId: string, classId: string, days: number
 export async function getStats(teacherId: string) {
   const { classes, students, incidents } = await connect();
   const [classCount, studentCount, incidentCount] = await Promise.all([
-    classes.countDocuments({ teacherId }),
+    classes.countDocuments({ teacherId, archivedAt: null }),
     students.countDocuments({ teacherId }),
     incidents.countDocuments({ teacherId }),
   ]);

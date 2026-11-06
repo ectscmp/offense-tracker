@@ -11,8 +11,8 @@ Implemented:
 - Auth.js (NextAuth v5) with Microsoft Entra ID provider
 - Server-rendered app shell and mobile bottom navigation
 - Home dashboard with class context, today's stats, recent students, latest entries
-- Teacher-created classes and class switching
-- Class-scoped roster with search and student history
+- Teacher-created classes, class switching, editing, archiving/restoring, and permanent deletion
+- Class-scoped roster with search, per-student editing, removal, and student history
 - Student behavior form with multi-select Positive / Concern / Other, notes, severity support,
   and server-side validation
 - Camera scanning (ZXing) with manual code fallback and cross-class class switching
@@ -22,8 +22,8 @@ Implemented:
 - Settings/account and sign out
 - MongoDB persistence with default behaviors and empty rosters/entries
 
-Next slices: class editing/deletion, behavior settings, custom report ranges, CSV export,
-QR token rotation, audit/retention, tenant-scoped access, PWA/offline.
+Next slices: behavior settings, custom report ranges, CSV export, QR token rotation,
+audit/retention, tenant-scoped access, PWA/offline.
 
 ## Requirements
 
@@ -48,11 +48,43 @@ Create `.env.local` from `.env.example` if it does not exist.
 Copy-Item .env.example .env.local
 ```
 
-Microsoft Entra ID is the only sign-in path. Generate a fresh `AUTH_SECRET` with:
+Microsoft Entra ID is the sign-in path for deployed builds. `npm run dev` also has a
+development-only local account, described below. Generate a fresh `AUTH_SECRET` with:
 
 ```powershell
 node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
 ```
+
+## Development sign-in
+
+Running `npm run dev` skips the Microsoft flow. The login page automatically signs in a local
+test account and stores it in the browser under the localStorage key
+`offense-tracker.dev-account.v1`.
+
+- Sign out to return to the login page, then choose **Continue as local test account** to sign
+  back in.
+- The provider is registered only when `NODE_ENV === "development"`. `next build` and
+  `next start` always run with `NODE_ENV=production`, so the local account cannot exist in a
+  deployed build. A dev-issued session is also rejected at the session callback if it is ever
+  presented to production.
+- The account writes to the development JSON store (see below), not MongoDB.
+- Use a separate `MONGODB_DB` if you opt back into Mongo with `DEV_STORE=mongo`.
+
+## Development data store
+
+`npm run dev` does not connect to MongoDB. The same data-access functions in `src/lib/store.ts`
+switch to a local JSON store at `web/.data/dev-db.json`, so the app, server actions, and
+reports all work with no database running.
+
+- The file is created on the first dev sign-in and seeds the default behavior vocabulary and
+  settings. It starts with no classes, students, or entries.
+- Reset it with `npm run dev:db:reset`, then restart the dev server so the in-memory cache is
+  cleared. You can also delete `web/.data/dev-db.json`.
+- Set `DEV_STORE=mongo` in `.env.local` to use MongoDB while developing (for example, to test a
+  migration against real data).
+- Production always uses MongoDB. The local store also refuses to run outside development.
+- `npm run db:check` and `npm run db:reset` still target MongoDB; they are not used by the dev
+  data path.
 
 ## Microsoft Entra ID
 
@@ -87,24 +119,34 @@ token tenant and only accepts accounts with an email/UPN.
 
 ## Data
 
-- Connection: `MONGODB_URI` and `MONGODB_DB` (default database name `offense_tracker`)
-- Schema, indexes, and seed logic: `src/lib/db.ts`
+- `src/lib/store.ts` chooses the backend: a local JSON store during development and MongoDB in
+  production. Pages and server actions import from `@/lib/store`, so responses are identical.
+- Development store: `src/lib/db-local.ts` writes to `web/.data/dev-db.json`.
+- Production store: `src/lib/db.ts` uses `MONGODB_URI` and `MONGODB_DB` (default database name
+  `offense_tracker`).
 - Collections: `teachers`, `classes`, `students`, `behaviors`, `incidents`, `settings`
 - Indexes are created on the first connection; class membership is embedded in each student
-  (`classIds`), and each incident embeds a snapshot of its behaviors.
+  (`classIds`), each incident embeds a snapshot of its behaviors, and classes use
+  `archivedAt` for archive/restore.
 - The teacher, default behaviors, and settings are created on the first sign-in.
   New accounts start with an empty workspace.
 
-Check the connection and collection counts:
+Check the Mongo connection and collection counts (not used by the dev data path):
 
 ```powershell
 npm run db:check
 ```
 
-Drop the configured database (destructive; requires `--yes`):
+Drop the configured Mongo database (destructive; requires `--yes`):
 
 ```powershell
 npm run db:reset -- --yes
+```
+
+Reset the local development store:
+
+```powershell
+npm run dev:db:reset
 ```
 
 The next sign-in recreates the teacher defaults. Use a separate `MONGODB_DB` for tests so you do
@@ -162,7 +204,9 @@ npm run build
 | `/roster/print` | Printable opaque QR cards |
 | `/s/[token]` | Short QR link; opens the student after sign-in |
 | `/classes/new` | Create a class |
+| `/classes/[id]/edit` | Edit, archive, or delete a class |
 | `/student/[id]` | Behavior form and student history |
+| `/student/[id]/edit` | Edit a roster entry or remove it from the class |
 | `/reports` | 7/30-day class report |
 | `/settings` | Account, classes, sign out |
 | `/api/health` | Railway healthcheck; pings MongoDB |
@@ -193,7 +237,8 @@ npm run build
 - QR tokens are stored per student and are not displayed in normal student views.
 - Bulk import validates all lines before writing and relies on a unique
   `(teacherId, externalIdLower)` index to avoid duplicate students.
-- The development auth path must be disabled outside local development.
+- The development auth path is gated on `NODE_ENV === "development"` and is never registered in
+  a production build.
 - QR tokens are opaque, but revocation/reprint controls still need to be added.
 - Rate limiting is in-memory and per instance; move it to a shared store before running
   multiple instances.

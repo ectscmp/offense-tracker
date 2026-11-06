@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { ClassSwitcher } from "@/components/class-switcher";
 import { EmptyState } from "@/components/empty-state";
 import { nameOf } from "@/lib/format";
-import { getClassCounts, getClasses, getReport, getSelectedClass } from "@/lib/db";
+import { getClassCounts, getClasses, getReport, getSelectedClass } from "@/lib/store";
 import { getCurrentTeacher } from "@/lib/session";
 
 export const metadata = {
@@ -126,7 +126,7 @@ export default async function ReportsPage({
   );
 }
 
-function Stat({ label, value, positive = false }: { label: string; value: number | string; positive?: boolean }) {
+function Stat({ label, value, positive = false }: Readonly<{ label: string; value: number | string; positive?: boolean }>) {
   return (
     <div className="rounded-2xl border border-line bg-surface px-2 py-3 text-center">
       <strong className={`block text-xl tracking-[-0.03em] ${positive ? "text-positive" : ""}`}>{value}</strong>

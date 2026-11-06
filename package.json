@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "check": "node --check prototype/app.js",
-    "web": "npm --prefix web run dev",
+    "dev": "npm --prefix web run dev",
     "web:build": "npm --prefix web run build",
     "web:lint": "npm --prefix web run lint"
   },
