@@ -20,9 +20,11 @@ export type Student = {
 };
 
 export type RosterStudent = Student & {
-  logs30d: number;
-  positive30d: number;
-  concern30d: number;
+  /** Entries inside the selected date range. */
+  entries: number;
+  positive: number;
+  concern: number;
+  /** Most recent entry of all time, shown even outside the selected range. */
   lastAt: string | null;
 };
 
@@ -51,6 +53,35 @@ export type Incident = {
   severity: string | null;
   source: string;
   behaviors: IncidentBehavior[];
+};
+
+/** Inclusive local-time window used by reports and roster counts. */
+export type DateWindow = {
+  from: Date;
+  to: Date;
+};
+
+export type ReportBehaviorStudent = {
+  id: string;
+  name: string;
+  count: number;
+};
+
+export type ReportBehaviorRow = {
+  label: string;
+  tone: BehaviorTone;
+  count: number;
+  students: ReportBehaviorStudent[];
+};
+
+export type ReportStudentRow = Student & { count: number };
+
+export type ReportData = {
+  entries: number;
+  students: number;
+  positiveShare: number;
+  behaviors: ReportBehaviorRow[];
+  studentRows: ReportStudentRow[];
 };
 
 export type DashboardData = {

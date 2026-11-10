@@ -64,7 +64,8 @@ What is implemented in this first production slice:
 - Opaque QR tokens and printable student QR cards
 - Single-line and **bulk roster import** with preview, validation, duplicate detection, and
   enrolling an existing student in another class
-- Reports for the last 7/30 days with class filtering and behavior/student breakdowns
+- Reports for the last 7/30 days, this month, or a custom date range, with class
+  filtering and expandable behavior/student breakdowns
 - MongoDB persistence with behaviors and an empty roster/entry history by default
 - Settings/account page and sign out
 
@@ -316,7 +317,7 @@ The `web/` app is a first vertical slice, not a finished release.
   deletion, roster import, scanning, and the first logging flow are implemented.
 - **QR tokens are opaque but not revocable from the UI yet.** Plan token rotation/reprint
   controls before a pilot.
-- **Reports need custom dates, CSV export, and print.** Current reports are 7/30 days.
+- **Reports need CSV export and print.** Reports support preset and custom dates.
 - **No audit log, retention policy, role management, or tenant restriction.** Add these
   before any pilot involving real students.
 - **Entra ID is wired but not configured.** Follow [`web/AUTH_SETUP.md`](web/AUTH_SETUP.md) and

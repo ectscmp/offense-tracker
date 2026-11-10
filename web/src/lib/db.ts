@@ -5,12 +5,14 @@ import type {
   BehaviorTone,
   Classroom,
   DashboardData,
+  DateWindow,
   Incident,
+  ReportData,
   RosterStudent,
   Student,
   Teacher,
 } from "./types";
-import { nameOf, startOfDaysAgo, startOfToday } from "./format";
+import { endOfToday, nameOf, startOfDaysAgo, startOfToday } from "./format";
 import type { BulkStudentRow } from "./parse-students";
 
 /*
@@ -484,75 +486,88 @@ export async function getClassCounts(teacherId: string): Promise<Record<string, 
   return Object.fromEntries(rows.map((row) => [row._id, Number(row.count)]));
 }
 
-export async function getRoster(teacherId: string, classId: string): Promise<RosterStudent[]> {
+export async function getRoster(
+  teacherId: string,
+  classId: string,
+  range: DateWindow = { from: startOfDaysAgo(29), to: endOfToday() },
+): Promise<RosterStudent[]> {
   const { students, incidents } = await connect();
-  const since = startOfDaysAgo(30);
   const docs = await students.find({ teacherId, classIds: classId }).toArray();
   docs.sort(byName);
 
   const ids = docs.map((doc) => doc._id);
-  const activity = ids.length
-    ? await incidents
-        .aggregate<{
-          _id: string;
-          logs30d: number;
-          positive30d: number;
-          concern30d: number;
-          lastAt: Date;
-        }>([
-          {
-            $match: {
-              teacherId,
-              classId,
-              studentId: { $in: ids },
-              occurredAt: { $gte: since },
+  const [activity, lastRows] = ids.length
+    ? await Promise.all([
+        incidents
+          .aggregate<{
+            _id: string;
+            entries: number;
+            positive: number;
+            concern: number;
+          }>([
+            {
+              $match: {
+                teacherId,
+                classId,
+                studentId: { $in: ids },
+                occurredAt: { $gte: range.from, $lte: range.to },
+              },
             },
-          },
-          {
-            $project: {
-              occurredAt: 1,
-              positive: {
-                $size: {
-                  $filter: {
-                    input: "$behaviors",
-                    as: "behavior",
-                    cond: { $eq: ["$$behavior.tone", "positive"] },
+            {
+              $project: {
+                // Keep the grouping key; an inclusion projection drops every
+                // field it does not name and would bucket all rows under null.
+                studentId: 1,
+                positive: {
+                  $size: {
+                    $filter: {
+                      input: "$behaviors",
+                      as: "behavior",
+                      cond: { $eq: ["$$behavior.tone", "positive"] },
+                    },
+                  },
+                },
+                concern: {
+                  $size: {
+                    $filter: {
+                      input: "$behaviors",
+                      as: "behavior",
+                      cond: { $eq: ["$$behavior.tone", "concern"] },
+                    },
                   },
                 },
               },
-              concern: {
-                $size: {
-                  $filter: {
-                    input: "$behaviors",
-                    as: "behavior",
-                    cond: { $eq: ["$$behavior.tone", "concern"] },
-                  },
-                },
+            },
+            {
+              $group: {
+                _id: "$studentId",
+                entries: { $sum: 1 },
+                positive: { $sum: "$positive" },
+                concern: { $sum: "$concern" },
               },
             },
-          },
-          {
-            $group: {
-              _id: "$studentId",
-              logs30d: { $sum: 1 },
-              positive30d: { $sum: "$positive" },
-              concern30d: { $sum: "$concern" },
-              lastAt: { $max: "$occurredAt" },
-            },
-          },
-        ])
-        .toArray()
-    : [];
+          ])
+          .toArray(),
+        incidents
+          .aggregate<{ _id: string; lastAt: Date }>([
+            { $match: { teacherId, classId, studentId: { $in: ids } } },
+            { $group: { _id: "$studentId", lastAt: { $max: "$occurredAt" } } },
+          ])
+          .toArray(),
+      ])
+    : [[], []];
   const byStudent = new Map(activity.map((row) => [row._id, row]));
+  const lastByStudent = new Map(lastRows.map((row) => [row._id, row.lastAt]));
 
   return docs.map((doc) => {
     const row = byStudent.get(doc._id);
+    const lastAt = lastByStudent.get(doc._id);
     return {
       ...mapStudent(doc),
-      logs30d: Number(row?.logs30d ?? 0),
-      positive30d: Number(row?.positive30d ?? 0),
-      concern30d: Number(row?.concern30d ?? 0),
-      lastAt: row?.lastAt ? row.lastAt.toISOString() : null,
+      entries: Number(row?.entries ?? 0),
+      positive: Number(row?.positive ?? 0),
+      concern: Number(row?.concern ?? 0),
+      lastAt: lastAt ? lastAt.toISOString() : null,
     };
   });
 }
@@ -928,10 +943,13 @@ export async function getStudentHistory(
   return docs.map(mapIncident);
 }
 
-export async function getReport(teacherId: string, classId: string, days: number) {
+export async function getReport(
+  teacherId: string,
+  classId: string,
+  range: DateWindow,
+): Promise<ReportData> {
   const { students, incidents } = await connect();
-  const since = startOfDaysAgo(Math.max(1, days) - 1);
-  const match = { teacherId, classId, occurredAt: { $gte: since } };
+  const match = { teacherId, classId, occurredAt: { $gte: range.from, $lte: range.to } };
 
   const [summaryRow, behaviorRows, studentRows, share] = await Promise.all([
     incidents
@@ -948,16 +966,22 @@ export async function getReport(teacherId: string, classId: string, days: number
       .toArray()
       .then((rows) => rows[0]),
     incidents
-      .aggregate<{ _id: { label: string; tone: BehaviorTone }; count: number }>([
+      .aggregate<{
+        _id: { label: string; tone: BehaviorTone; studentId: string };
+        count: number;
+      }>([
         { $match: match },
         { $unwind: "$behaviors" },
         {
           $group: {
-            _id: { label: "$behaviors.label", tone: "$behaviors.tone" },
+            _id: {
+              label: "$behaviors.label",
+              tone: "$behaviors.tone",
+              studentId: "$studentId",
+            },
             count: { $sum: 1 },
           },
         },
-        { $sort: { count: -1, "_id.label": 1 } },
       ])
       .toArray(),
     incidents
@@ -969,16 +993,46 @@ export async function getReport(teacherId: string, classId: string, days: number
     positiveShare(match),
   ]);
 
-  const studentDocs = studentRows.length
-    ? await students.find({ _id: { $in: studentRows.map((row) => row._id) }, teacherId }).toArray()
+  const studentIds = new Set<string>([
+    ...studentRows.map((row) => row._id),
+    ...behaviorRows.map((row) => row._id.studentId),
+  ]);
+  const studentDocs = studentIds.size
+    ? await students.find({ _id: { $in: [...studentIds] }, teacherId }).toArray()
     : [];
   const studentById = new Map(studentDocs.map((doc) => [doc._id, doc]));
 
-  const behaviorList = behaviorRows.map((row) => ({
-    label: row._id.label,
-    tone: row._id.tone,
-    count: Number(row.count),
-  }));
+  const behaviorMap = new Map<
+    string,
+    { label: string; tone: BehaviorTone; count: number; students: Map<string, number> }
+  >();
+  for (const row of behaviorRows) {
+    const key = `${row._id.tone}\u0000${row._id.label}`;
+    const entry = behaviorMap.get(key) ?? {
+      label: row._id.label,
+      tone: row._id.tone,
+      count: 0,
+      students: new Map<string, number>(),
+    };
+    const count = Number(row.count);
+    entry.count += count;
+    entry.students.set(row._id.studentId, (entry.students.get(row._id.studentId) ?? 0) + count);
+    behaviorMap.set(key, entry);
+  }
+
+  const behaviorList = [...behaviorMap.values()]
+    .map((row) => ({
+      label: row.label,
+      tone: row.tone,
+      count: row.count,
+      students: [...row.students.entries()]
+        .flatMap(([id, count]) => {
+          const doc = studentById.get(id);
+          return doc ? [{ id, name: nameOf(mapStudent(doc)), count }] : [];
+        })
+        .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
+    }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
 
   const studentList = studentRows.flatMap((row) => {
     const doc = studentById.get(row._id);

@@ -6,12 +6,14 @@ import type {
   BehaviorTone,
   Classroom,
   DashboardData,
+  DateWindow,
   Incident,
+  ReportData,
   RosterStudent,
   Student,
   Teacher,
 } from "./types";
-import { startOfDaysAgo, startOfToday } from "./format";
+import { endOfToday, startOfDaysAgo, startOfToday } from "./format";
 import type { BulkStudentRow } from "./parse-students";
 
 /*
@@ -578,9 +580,11 @@ export async function getClassCounts(teacherId: string): Promise<Record<string, 
 export async function getRoster(
   teacherId: string,
   classId: string,
+  range: DateWindow = { from: startOfDaysAgo(29), to: endOfToday() },
 ): Promise<RosterStudent[]> {
   return read((data) => {
-    const since = startOfDaysAgo(30).getTime();
+    const from = range.from.getTime();
+    const to = range.to.getTime();
     const students = data.students
       .filter((student) => student.teacherId === teacherId && student.classIds.includes(classId))
       .sort(byName);
@@ -590,28 +594,30 @@ export async function getRoster(
         (incident) =>
           incident.teacherId === teacherId &&
           incident.classId === classId &&
-          incident.studentId === student.id &&
-          new Date(incident.occurredAt).getTime() >= since,
+          incident.studentId === student.id,
       );
 
+      let entries = 0;
       let positive = 0;
       let concern = 0;
       let lastAt: string | null = null;
       for (const incident of incidents) {
+        const at = new Date(incident.occurredAt).getTime();
+        if (!lastAt || at > new Date(lastAt).getTime()) lastAt = incident.occurredAt;
+        if (at < from || at > to) continue;
+
+        entries++;
         for (const behavior of incident.behaviors) {
           if (behavior.tone === "positive") positive++;
           else if (behavior.tone === "concern") concern++;
-        }
-        if (!lastAt || new Date(incident.occurredAt).getTime() > new Date(lastAt).getTime()) {
-          lastAt = incident.occurredAt;
         }
       }
 
       return {
         ...toStudent(student),
-        logs30d: incidents.length,
-        positive30d: positive,
-        concern30d: concern,
+        entries,
+        positive,
+        concern,
         lastAt,
       };
     });
@@ -980,19 +986,25 @@ export async function getStudentHistory(
   );
 }
 
-export async function getReport(teacherId: string, classId: string, days: number) {
+export async function getReport(
+  teacherId: string,
+  classId: string,
+  range: DateWindow,
+): Promise<ReportData> {
   return read((data) => {
-    const since = startOfDaysAgo(Math.max(1, days) - 1).getTime();
+    const from = range.from.getTime();
+    const to = range.to.getTime();
     const incidents = data.incidents.filter(
       (incident) =>
         incident.teacherId === teacherId &&
         incident.classId === classId &&
-        new Date(incident.occurredAt).getTime() >= since,
+        new Date(incident.occurredAt).getTime() >= from &&
+        new Date(incident.occurredAt).getTime() <= to,
     );
 
-    const behaviors = new Map<
+    const behaviorRows = new Map<
       string,
-      { label: string; tone: BehaviorTone; count: number }
+      { label: string; tone: BehaviorTone; count: number; students: Map<string, number> }
     >();
     const studentCounts = new Map<string, number>();
     let positive = 0;
@@ -1004,15 +1016,18 @@ export async function getReport(teacherId: string, classId: string, days: number
         if (behavior.tone === "positive") positive++;
 
         const key = `${behavior.tone}\u0000${behavior.label}`;
-        const row = behaviors.get(key);
-        if (row) row.count++;
-        else {
-          behaviors.set(key, {
-            label: behavior.label,
-            tone: behavior.tone,
-            count: 1,
-          });
-        }
+        const row = behaviorRows.get(key) ?? {
+          label: behavior.label,
+          tone: behavior.tone,
+          count: 0,
+          students: new Map<string, number>(),
+        };
+        row.count++;
+        row.students.set(
+          incident.studentId,
+          (row.students.get(incident.studentId) ?? 0) + 1,
+        );
+        behaviorRows.set(key, row);
       }
 
       studentCounts.set(
@@ -1021,14 +1036,31 @@ export async function getReport(teacherId: string, classId: string, days: number
       );
     }
 
-    const behaviorRows = [...behaviors.values()].sort(
-      (a, b) => b.count - a.count || a.label.localeCompare(b.label),
+    const studentById = new Map(
+      data.students
+        .filter((student) => student.teacherId === teacherId)
+        .map((student) => [student.id, student]),
     );
-    const studentRows = [...studentCounts.entries()]
+
+    const behaviorList = [...behaviorRows.values()]
+      .map((row) => ({
+        label: row.label,
+        tone: row.tone,
+        count: row.count,
+        students: [...row.students.entries()]
+          .flatMap(([id, count]) => {
+            const student = studentById.get(id);
+            return student
+              ? [{ id, name: `${student.firstName} ${student.lastName}`, count }]
+              : [];
+          })
+          .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
+      }))
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+
+    const studentList = [...studentCounts.entries()]
       .flatMap(([id, count]) => {
-        const student = data.students.find(
-          (candidate) => candidate.id === id && candidate.teacherId === teacherId,
-        );
+        const student = studentById.get(id);
         return student ? [{ ...toStudent(student), count }] : [];
       })
       .sort((a, b) => b.count - a.count || byName(a, b));
@@ -1037,8 +1069,8 @@ export async function getReport(teacherId: string, classId: string, days: number
       entries: incidents.length,
       students: studentCounts.size,
       positiveShare: total ? Math.round((positive / total) * 100) : 0,
-      behaviors: behaviorRows,
-      studentRows,
+      behaviors: behaviorList,
+      studentRows: studentList,
     };
   });
 }

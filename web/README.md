@@ -18,11 +18,12 @@ Implemented:
 - Camera scanning (ZXing) with manual code fallback and cross-class class switching
 - Opaque QR tokens and a printable two-column QR card sheet
 - Bulk roster import with client-side preview and server-side validation
-- Reports for 7/30 days with behavior and student breakdowns
+- Reports with preset and custom date ranges, class filtering, expandable behavior
+  breakdowns that name the students involved, and per-student counts
 - Settings/account and sign out
 - MongoDB persistence with default behaviors and empty rosters/entries
 
-Next slices: behavior settings, custom report ranges, CSV export, QR token rotation,
+Next slices: behavior settings, CSV export, QR token rotation,
 audit/retention, tenant-scoped access, PWA/offline.
 
 ## Requirements
@@ -207,7 +208,7 @@ npm run build
 | `/classes/[id]/edit` | Edit, archive, or delete a class |
 | `/student/[id]` | Behavior form and student history |
 | `/student/[id]/edit` | Edit a roster entry or remove it from the class |
-| `/reports` | 7/30-day class report |
+| `/reports` | Dated class report |
 | `/settings` | Account, classes, sign out |
 | `/api/health` | Railway healthcheck; pings MongoDB |
 

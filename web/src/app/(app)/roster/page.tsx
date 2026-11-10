@@ -3,7 +3,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Avatar } from "@/components/avatar";
 import { ClassSwitcher } from "@/components/class-switcher";
+import { DateRangeControls } from "@/components/date-range-controls";
 import { EmptyState } from "@/components/empty-state";
+import { resolveDateRange, type RangeParams } from "@/lib/date-range";
 import { formatDay, nameOf } from "@/lib/format";
 import { getClassCounts, getClasses, getRoster, getSelectedClass } from "@/lib/store";
 import { getCurrentTeacher } from "@/lib/session";
@@ -15,16 +17,21 @@ export const metadata = {
 export default async function RosterPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<RangeParams & { q?: string }>;
 }) {
   const teacher = await getCurrentTeacher();
   if (!teacher) redirect("/login");
   const classroom = await getSelectedClass(teacher.id);
   if (!classroom) redirect("/home");
 
-  const { q = "" } = await searchParams;
+  const params = await searchParams;
+  const range = resolveDateRange(params);
+  const { q = "" } = params;
   const query = q.trim().toLowerCase();
-  const roster = await getRoster(teacher.id, classroom.id);
+  const roster = await getRoster(teacher.id, classroom.id, {
+    from: range.from,
+    to: range.to,
+  });
   const filtered = query
     ? roster.filter((student) =>
         `${student.firstName} ${student.lastName} ${student.externalId}`.toLowerCase().includes(query),
@@ -62,14 +69,23 @@ export default async function RosterPage({
         <ClassSwitcher classes={classes} activeId={classroom.id} counts={counts} />
       </div>
 
+      <DateRangeControls range={range} hidden={{ q }} />
+
       <p className="mt-2 px-1 text-[11px] text-muted">
-        {roster.length} students · {counts[classroom.id] ?? 0} enrolled · last 30d{" "}
+        {roster.length} students · {counts[classroom.id] ?? 0} enrolled · {range.label}{" "}
         <span className="font-bold text-positive">positive</span>
         <span className="mx-0.5">/</span>
         <span className="font-bold text-concern">concern</span>
       </p>
 
       <form method="get" className="relative mt-4 lg:max-w-xl">
+        <input type="hidden" name="range" value={range.preset} />
+        {range.preset === "custom" ? (
+          <>
+            <input type="hidden" name="from" value={range.start} />
+            <input type="hidden" name="to" value={range.end} />
+          </>
+        ) : null}
         <Search size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
         <input
           type="search"
@@ -101,14 +117,16 @@ export default async function RosterPage({
               </span>
               <span
                 className="rounded-lg bg-surface-2 px-2 py-1 text-center"
-                title={`${student.positive30d} positive, ${student.concern30d} concern in the last 30 days`}
+                title={`${student.positive} positive, ${student.concern} concern in ${range.label}`}
               >
                 <strong className="flex items-baseline justify-center gap-1 text-sm leading-4 font-bold">
-                  <span className="text-positive">{student.positive30d}</span>
+                  <span className="text-positive">{student.positive}</span>
                   <span className="text-[9px] text-muted-2">/</span>
-                  <span className="text-concern">{student.concern30d}</span>
+                  <span className="text-concern">{student.concern}</span>
                 </strong>
-                <small className="block text-[8px] font-bold uppercase tracking-wide text-muted">30d</small>
+                <small className="block text-[8px] font-bold uppercase tracking-wide text-muted">
+                  {range.shortLabel}
+                </small>
               </span>
               <ChevronRight size={16} className="text-muted-2" />
             </Link>
@@ -131,7 +149,7 @@ export default async function RosterPage({
                 <th className="px-4 py-3 font-bold">Student</th>
                 <th className="px-4 py-3 font-bold">Student ID</th>
                 <th className="px-4 py-3 font-bold">Last entry</th>
-                <th className="px-4 py-3 text-right font-bold">Last 30 days</th>
+                <th className="px-4 py-3 text-right font-bold">{range.label}</th>
                 <th className="w-12 px-4 py-3" />
               </tr>
             </thead>
@@ -152,9 +170,9 @@ export default async function RosterPage({
                     {student.lastAt ? formatDay(student.lastAt) : "No logs"}
                   </td>
                   <td className="px-4 py-3 text-right text-xs font-bold">
-                    <span className="text-positive">{student.positive30d} positive</span>
+                    <span className="text-positive">{student.positive} positive</span>
                     <span className="mx-1.5 text-muted-2">·</span>
-                    <span className="text-concern">{student.concern30d} concern</span>
+                    <span className="text-concern">{student.concern} concern</span>
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">

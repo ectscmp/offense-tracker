@@ -779,7 +779,8 @@ Implemented:
 - Opaque per-student QR tokens and a printable two-column QR card sheet
 - Bulk roster import with preview, validation, transactions, duplicate skipping, and
   existing-student enrollment
-- Seven/thirty-day reports with class filtering and behavior/student breakdowns
+- Dated reports (presets plus custom ranges) with class filtering and expandable
+  behavior/student breakdowns
 - Responsive app shell (mobile bottom navigation, desktop sidebar), settings/account, and sign out
 
 Deliberate local-only choices:
@@ -796,6 +797,6 @@ Deliberate local-only choices:
   configured school tenant can sign in and create its own classes and rosters.
 - Accounts start with no demo classes, roster, or entries.
 
-Not yet in `web/`: behavior settings, custom report ranges, CSV/PDF export, QR token
+Not yet in `web/`: behavior settings, CSV/PDF export, QR token
 rotation, audit/retention, role management, PWA/offline.
 These are the next slices, not completed production claims.
